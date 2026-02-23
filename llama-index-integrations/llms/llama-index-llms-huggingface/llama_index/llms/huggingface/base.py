@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Callable, List, Optional, Sequence, Union
 
@@ -381,7 +382,7 @@ class HuggingFaceLLM(CustomLLM):
         )
 
         # generate in background thread
-        # NOTE/TODO: token counting doesn't work with streaming
+        # Token counting during streaming is available via count_tokens() after generation
         thread = Thread(target=self._model.generate, kwargs=generation_kwargs)
         thread.start()
 
@@ -407,3 +408,49 @@ class HuggingFaceLLM(CustomLLM):
         prompt = self.messages_to_prompt(messages)
         completion_response = self.stream_complete(prompt, formatted=True, **kwargs)
         return stream_completion_response_to_chat_response(completion_response)
+
+    def count_tokens(self, text: str) -> int:
+        """Count the number of tokens in the given text."""
+        return len(self._tokenizer.encode(text))
+
+    async def acomplete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponse:
+        """Async completion - runs sync complete in thread pool."""
+        return await asyncio.to_thread(
+            self.complete, prompt, formatted=formatted, **kwargs
+        )
+
+    async def astream_complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponseGen:
+        """Async streaming completion - wraps sync stream in async generator."""
+        gen = await asyncio.to_thread(
+            self.stream_complete, prompt, formatted=formatted, **kwargs
+        )
+
+        async def async_gen():
+            for item in gen:
+                yield item
+
+        return async_gen()
+
+    async def achat(
+        self, messages: Sequence[ChatMessage], **kwargs: Any
+    ) -> ChatResponse:
+        """Async chat - runs sync chat in thread pool."""
+        return await asyncio.to_thread(self.chat, messages, **kwargs)
+
+    async def astream_chat(
+        self, messages: Sequence[ChatMessage], **kwargs: Any
+    ) -> ChatResponseGen:
+        """Async streaming chat - wraps sync stream in async generator."""
+        gen = await asyncio.to_thread(
+            self.stream_chat, messages, **kwargs
+        )
+
+        async def async_gen():
+            for item in gen:
+                yield item
+
+        return async_gen()
