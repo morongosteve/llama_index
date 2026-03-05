@@ -234,6 +234,7 @@ class LLM(BaseLLM):
     def _log_template_data(
         self, prompt: BasePromptTemplate, **prompt_args: Any
     ) -> None:
+        """Log template variables via the callback manager for tracing."""
         template_vars = {
             k: v
             for k, v in ChainMap(prompt.kwargs, prompt_args).items()
@@ -251,6 +252,7 @@ class LLM(BaseLLM):
             pass
 
     def _get_prompt(self, prompt: BasePromptTemplate, **prompt_args: Any) -> str:
+        """Format a prompt template into a string, applying output parser and system prompt."""
         formatted_prompt = prompt.format(
             llm=self,
             messages_to_prompt=self.messages_to_prompt,
@@ -264,12 +266,14 @@ class LLM(BaseLLM):
     def _get_messages(
         self, prompt: BasePromptTemplate, **prompt_args: Any
     ) -> List[ChatMessage]:
+        """Format a prompt template into chat messages, applying output parser and system prompt."""
         messages = prompt.format_messages(llm=self, **prompt_args)
         if self.output_parser is not None:
             messages = self.output_parser.format_messages(messages)
         return self._extend_messages(messages)
 
     def _parse_output(self, output: str) -> str:
+        """Parse raw LLM output through the configured output parser, if any."""
         if self.output_parser is not None:
             return str(self.output_parser.parse(output))
 
@@ -924,7 +928,15 @@ class LLM(BaseLLM):
         output_cls: Type[BaseModel],
         **kwargs: Any,
     ) -> "StructuredLLM":
-        """Return a structured LLM around a given object."""
+        """Wrap this LLM to always return structured output matching a Pydantic model.
+
+        Args:
+            output_cls: The Pydantic model class that defines the expected
+                output schema.
+
+        Returns:
+            A ``StructuredLLM`` that validates outputs against *output_cls*.
+        """
         from llama_index.core.llms.structured_llm import StructuredLLM
 
         return StructuredLLM(llm=self, output_cls=output_cls, **kwargs)

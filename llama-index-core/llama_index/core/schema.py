@@ -224,6 +224,8 @@ class NodeRelationship(str, Enum):
 
 
 class ObjectType(str, Enum):
+    """Enumeration of node object types used for serialization and type checking."""
+
     TEXT = auto()
     IMAGE = auto()
     INDEX = auto()
@@ -232,6 +234,8 @@ class ObjectType(str, Enum):
 
 
 class Modality(str, Enum):
+    """Content modality of a node or media resource."""
+
     TEXT = auto()
     IMAGE = auto()
     AUDIO = auto()
@@ -610,6 +614,12 @@ class MediaResource(BaseModel):
 
 
 class Node(BaseNode):
+    """Multi-modal node that can hold text, image, audio, and video resources.
+
+    Unlike ``TextNode`` which stores text directly, ``Node`` uses
+    ``MediaResource`` fields to represent content across modalities.
+    """
+
     text_resource: MediaResource | None = Field(
         default=None, description="Text content of the node."
     )

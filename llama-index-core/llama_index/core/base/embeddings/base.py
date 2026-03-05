@@ -67,7 +67,22 @@ def similarity(
 
 
 class BaseEmbedding(TransformComponent, DispatcherSpanMixin):
-    """Base class for embeddings."""
+    """Base class for all embedding models.
+
+    Provides a unified interface for generating vector embeddings from text.
+    Subclasses must implement ``_get_query_embedding``,
+    ``_aget_query_embedding``, ``_get_text_embedding``, and
+    ``_aget_text_embedding``.
+
+    Handles batching, caching, and callback instrumentation automatically.
+
+    Args:
+        model_name: Name of the embedding model.
+        embed_batch_size: Batch size for embedding calls (1-2048).
+        callback_manager: Optional callback manager for tracing.
+        num_workers: Number of workers for async batch embedding.
+        embeddings_cache: Optional ``BaseKVStore`` to cache embeddings.
+    """
 
     model_config = ConfigDict(
         protected_namespaces=("pydantic_model_",), arbitrary_types_allowed=True
@@ -446,7 +461,15 @@ class BaseEmbedding(TransformComponent, DispatcherSpanMixin):
         show_progress: bool = False,
         **kwargs: Any,
     ) -> List[Embedding]:
-        """Get a list of text embeddings, with batching."""
+        """Get embeddings for a list of texts, processing in batches.
+
+        Args:
+            texts: The texts to embed.
+            show_progress: If True, display a progress bar.
+
+        Returns:
+            List of embedding vectors, one per input text.
+        """
         cur_batch: List[str] = []
         result_embeddings: List[Embedding] = []
 
@@ -497,7 +520,15 @@ class BaseEmbedding(TransformComponent, DispatcherSpanMixin):
         show_progress: bool = False,
         **kwargs: Any,
     ) -> List[Embedding]:
-        """Asynchronously get a list of text embeddings, with batching."""
+        """Async version of ``get_text_embedding_batch``.
+
+        Args:
+            texts: The texts to embed.
+            show_progress: If True, display a progress bar.
+
+        Returns:
+            List of embedding vectors, one per input text.
+        """
         num_workers = self.num_workers
 
         model_dict = self.to_dict()
@@ -591,6 +622,18 @@ class BaseEmbedding(TransformComponent, DispatcherSpanMixin):
         return similarity(embedding1=embedding1, embedding2=embedding2, mode=mode)
 
     def __call__(self, nodes: Sequence[BaseNode], **kwargs: Any) -> Sequence[BaseNode]:
+        """Embed a sequence of nodes in-place as a transform step.
+
+        Sets the ``embedding`` attribute on each node and returns the
+        nodes. Used when the embedding model is part of an ingestion
+        pipeline.
+
+        Args:
+            nodes: Nodes whose content will be embedded.
+
+        Returns:
+            The same nodes with ``embedding`` populated.
+        """
         embeddings = self.get_text_embedding_batch(
             [node.get_content(metadata_mode=MetadataMode.EMBED) for node in nodes],
             **kwargs,
@@ -604,6 +647,7 @@ class BaseEmbedding(TransformComponent, DispatcherSpanMixin):
     async def acall(
         self, nodes: Sequence[BaseNode], **kwargs: Any
     ) -> Sequence[BaseNode]:
+        """Async version of ``__call__``."""
         embeddings = await self.aget_text_embedding_batch(
             [node.get_content(metadata_mode=MetadataMode.EMBED) for node in nodes],
             **kwargs,

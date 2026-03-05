@@ -20,7 +20,17 @@ logger = logging.getLogger(__name__)
 
 
 class BaseQueryEngine(PromptMixin, DispatcherSpanMixin):
-    """Base query engine."""
+    """Base class for all query engines.
+
+    A query engine takes a natural language query and returns a structured
+    ``RESPONSE_TYPE`` that contains both the synthesized answer and the
+    source nodes used to produce it.
+
+    Subclasses must implement ``_query`` and ``_aquery``.
+
+    Args:
+        callback_manager: Optional callback manager for tracing and event hooks.
+    """
 
     def __init__(
         self,
@@ -37,6 +47,16 @@ class BaseQueryEngine(PromptMixin, DispatcherSpanMixin):
 
     @dispatcher.span
     def query(self, str_or_query_bundle: QueryType) -> RESPONSE_TYPE:
+        """Run a query against the engine and return a response.
+
+        Args:
+            str_or_query_bundle: A plain query string or a ``QueryBundle``
+                containing the query and optional embedding information.
+
+        Returns:
+            A ``RESPONSE_TYPE`` containing the synthesized answer and
+            source nodes.
+        """
         dispatcher.event(QueryStartEvent(query=str_or_query_bundle))
         with self.callback_manager.as_trace("query"):
             if isinstance(str_or_query_bundle, str):
@@ -49,6 +69,15 @@ class BaseQueryEngine(PromptMixin, DispatcherSpanMixin):
 
     @dispatcher.span
     async def aquery(self, str_or_query_bundle: QueryType) -> RESPONSE_TYPE:
+        """Async version of ``query``.
+
+        Args:
+            str_or_query_bundle: A plain query string or a ``QueryBundle``.
+
+        Returns:
+            A ``RESPONSE_TYPE`` containing the synthesized answer and
+            source nodes.
+        """
         dispatcher.event(QueryStartEvent(query=str_or_query_bundle))
         with self.callback_manager.as_trace("query"):
             if isinstance(str_or_query_bundle, str):
@@ -60,6 +89,21 @@ class BaseQueryEngine(PromptMixin, DispatcherSpanMixin):
         return query_result
 
     def retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
+        """Retrieve relevant nodes for a query without synthesizing a response.
+
+        Not all query engines support this method. Use ``query`` directly
+        if this raises ``NotImplementedError``.
+
+        Args:
+            query_bundle: The query to retrieve nodes for.
+
+        Returns:
+            List of scored nodes relevant to the query.
+
+        Raises:
+            NotImplementedError: If the engine does not support retrieval
+                as a separate step.
+        """
         raise NotImplementedError(
             "This query engine does not support retrieve, use query directly"
         )
@@ -70,6 +114,24 @@ class BaseQueryEngine(PromptMixin, DispatcherSpanMixin):
         nodes: List[NodeWithScore],
         additional_source_nodes: Optional[Sequence[NodeWithScore]] = None,
     ) -> RESPONSE_TYPE:
+        """Synthesize a response from a query and pre-retrieved nodes.
+
+        Not all query engines support this method. Use ``query`` directly
+        if this raises ``NotImplementedError``.
+
+        Args:
+            query_bundle: The original query.
+            nodes: Pre-retrieved nodes to synthesize from.
+            additional_source_nodes: Extra source nodes to include in the
+                response metadata.
+
+        Returns:
+            A ``RESPONSE_TYPE`` with the synthesized answer.
+
+        Raises:
+            NotImplementedError: If the engine does not support synthesis
+                as a separate step.
+        """
         raise NotImplementedError(
             "This query engine does not support synthesize, use query directly"
         )
@@ -80,14 +142,43 @@ class BaseQueryEngine(PromptMixin, DispatcherSpanMixin):
         nodes: List[NodeWithScore],
         additional_source_nodes: Optional[Sequence[NodeWithScore]] = None,
     ) -> RESPONSE_TYPE:
+        """Async version of ``synthesize``.
+
+        Args:
+            query_bundle: The original query.
+            nodes: Pre-retrieved nodes to synthesize from.
+            additional_source_nodes: Extra source nodes to include in the
+                response metadata.
+
+        Returns:
+            A ``RESPONSE_TYPE`` with the synthesized answer.
+
+        Raises:
+            NotImplementedError: If the engine does not support synthesis
+                as a separate step.
+        """
         raise NotImplementedError(
             "This query engine does not support asynthesize, use aquery directly"
         )
 
     @abstractmethod
     def _query(self, query_bundle: QueryBundle) -> RESPONSE_TYPE:
-        pass
+        """Execute the query logic. Subclasses must implement this.
+
+        Args:
+            query_bundle: The query to execute.
+
+        Returns:
+            A ``RESPONSE_TYPE`` with the answer and source nodes.
+        """
 
     @abstractmethod
     async def _aquery(self, query_bundle: QueryBundle) -> RESPONSE_TYPE:
-        pass
+        """Async version of ``_query``. Subclasses must implement this.
+
+        Args:
+            query_bundle: The query to execute.
+
+        Returns:
+            A ``RESPONSE_TYPE`` with the answer and source nodes.
+        """
