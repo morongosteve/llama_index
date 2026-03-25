@@ -164,10 +164,12 @@ class BaseIndex(Generic[IS], ABC):
 
     @property
     def storage_context(self) -> StorageContext:
+        """Get the storage context for this index."""
         return self._storage_context
 
     @property
     def summary(self) -> str:
+        """Get the index summary text."""
         return str(self._index_struct.summary)
 
     @summary.setter

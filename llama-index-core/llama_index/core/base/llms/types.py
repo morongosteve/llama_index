@@ -507,6 +507,8 @@ class ThinkingBlock(BaseModel):
 
 
 class ToolCallBlock(BaseModel):
+    """A content block representing a tool/function call made by the LLM."""
+
     block_type: Literal["tool_call"] = "tool_call"
     tool_call_id: Optional[str] = Field(
         default=None, description="ID of the tool call, if provided"
@@ -700,6 +702,13 @@ CompletionResponseAsyncGen = AsyncGenerator[CompletionResponse, None]
 
 
 class LLMMetadata(BaseModel):
+    """Metadata describing an LLM's capabilities and configuration.
+
+    Returned by ``BaseLLM.metadata`` to inform the framework about
+    context window size, chat vs. completion mode, function calling
+    support, and other model-specific properties.
+    """
+
     model_config = ConfigDict(
         protected_namespaces=("pydantic_model_",), arbitrary_types_allowed=True
     )

@@ -32,7 +32,23 @@ dispatcher = instrument.get_dispatcher(__name__)
 
 
 class BaseRetriever(PromptMixin, DispatcherSpanMixin):
-    """Base retriever."""
+    """Base class for all retrievers.
+
+    A retriever takes a query and returns a list of relevant nodes scored
+    by relevance. Subclasses must implement ``_retrieve`` and optionally
+    ``_aretrieve`` for async support.
+
+    Supports recursive retrieval: when an ``IndexNode`` is encountered
+    whose ``obj`` (or mapped object) is itself a retriever or query engine,
+    the retriever will delegate to that object automatically.
+
+    Args:
+        callback_manager: Optional callback manager for tracing.
+        object_map: Mapping of index IDs to objects for recursive retrieval.
+        objects: List of ``IndexNode`` objects whose ``obj`` attributes
+            will be used to populate ``object_map``.
+        verbose: If True, print retrieval progress messages.
+    """
 
     def __init__(
         self,
@@ -116,6 +132,20 @@ class BaseRetriever(PromptMixin, DispatcherSpanMixin):
     def _handle_recursive_retrieval(
         self, query_bundle: QueryBundle, nodes: List[NodeWithScore]
     ) -> List[NodeWithScore]:
+        """Recursively resolve ``IndexNode`` objects to their underlying results.
+
+        For each ``IndexNode`` in *nodes*, looks up the referenced object
+        (retriever, query engine, or plain node) and retrieves from it.
+        Deduplicates results by node hash.
+
+        Args:
+            query_bundle: The query to pass to sub-retrievers/engines.
+            nodes: Initial retrieval results that may contain ``IndexNode``
+                references.
+
+        Returns:
+            Flattened, deduplicated list of ``NodeWithScore`` objects.
+        """
         retrieved_nodes: List[NodeWithScore] = []
         for n in nodes:
             node = n.node
@@ -148,6 +178,7 @@ class BaseRetriever(PromptMixin, DispatcherSpanMixin):
     async def _ahandle_recursive_retrieval(
         self, query_bundle: QueryBundle, nodes: List[NodeWithScore]
     ) -> List[NodeWithScore]:
+        """Async version of ``_handle_recursive_retrieval``."""
         retrieved_nodes: List[NodeWithScore] = []
         for n in nodes:
             node = n.node
@@ -222,6 +253,15 @@ class BaseRetriever(PromptMixin, DispatcherSpanMixin):
 
     @dispatcher.span
     async def aretrieve(self, str_or_query_bundle: QueryType) -> List[NodeWithScore]:
+        """Async version of ``retrieve``.
+
+        Args:
+            str_or_query_bundle: Either a query string or
+                a ``QueryBundle`` object.
+
+        Returns:
+            List of ``NodeWithScore`` objects ranked by relevance.
+        """
         self._check_callback_manager()
 
         dispatcher.event(
