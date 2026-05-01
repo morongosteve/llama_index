@@ -50,6 +50,17 @@ def download_llama_pack(
     if pack_name in mappings:
         new_import_parent = mappings[pack_name]
         new_install_parent = new_import_parent.replace(".", "-").replace("_", "-")
+    elif marketplace_name:
+        # Pack not in standard mappings but a marketplace was specified —
+        # derive the package path from the pack name directly so marketplace
+        # resolution can proceed.
+        snake_name = ""
+        for i, ch in enumerate(pack_name):
+            if ch.isupper() and i > 0:
+                snake_name += "_"
+            snake_name += ch.lower()
+        new_import_parent = f"llama_index.packs.{snake_name}"
+        new_install_parent = f"llama-index-packs-{snake_name.replace('_', '-')}"
     else:
         raise ValueError(f"Failed to find python package for class {pack_name}")
 
