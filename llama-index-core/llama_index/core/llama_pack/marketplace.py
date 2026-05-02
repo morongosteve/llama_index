@@ -207,4 +207,7 @@ class MarketplaceManager:
         if marketplace is None:
             return None
 
-        return f"https://github.com/{marketplace.repository}/tree/{marketplace.branch}"
+        url = f"https://github.com/{marketplace.repository}/tree/{marketplace.branch}"
+        if marketplace.base_path:
+            url = f"{url}/{marketplace.base_path}"
+        return url
