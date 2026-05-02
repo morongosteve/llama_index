@@ -1,0 +1,128 @@
+[
+  {
+    "id": "fb_001",
+    "text": "The onboarding flow was seamless. Loved the progress indicator.",
+    "rating": 5,
+    "category": "ux",
+    "author": "alice@example.com",
+    "createdAt": "2026-04-01T10:00:00Z",
+    "tags": [
+      "onboarding",
+      "positive"
+    ]
+  },
+  {
+    "id": "fb_002",
+    "text": "Search is painfully slow on mobile. Takes 4+ seconds to return results.",
+    "rating": 2,
+    "category": "performance",
+    "author": "bob@example.com",
+    "createdAt": "2026-04-02T14:30:00Z",
+    "tags": [
+      "search",
+      "mobile",
+      "regression"
+    ]
+  },
+  {
+    "id": "fb_003",
+    "text": "Dark mode toggle doesn't persist across sessions.",
+    "rating": 3,
+    "category": "bug",
+    "author": "carol@example.com",
+    "createdAt": "2026-04-03T09:15:00Z",
+    "tags": [
+      "dark-mode",
+      "settings"
+    ]
+  },
+  {
+    "id": "fb_004",
+    "text": "Would love keyboard shortcuts for power users.",
+    "rating": 4,
+    "category": "feature-request",
+    "author": "dave@example.com",
+    "createdAt": "2026-04-05T16:45:00Z",
+    "tags": [
+      "shortcuts",
+      "power-users"
+    ]
+  },
+  {
+    "id": "fb_005",
+    "text": "The export to CSV feature saved me hours. Thank you!",
+    "rating": 5,
+    "category": "ux",
+    "author": "eve@example.com",
+    "createdAt": "2026-04-07T11:20:00Z",
+    "tags": [
+      "export",
+      "positive"
+    ]
+  },
+  {
+    "id": "fb_006",
+    "text": "Getting 500 errors when uploading files larger than 10MB.",
+    "rating": 1,
+    "category": "bug",
+    "author": "frank@example.com",
+    "createdAt": "2026-04-08T08:00:00Z",
+    "tags": [
+      "upload",
+      "error",
+      "critical"
+    ]
+  },
+  {
+    "id": "fb_007",
+    "text": "API rate limiting kicked in way too aggressively during batch imports.",
+    "rating": 2,
+    "category": "performance",
+    "author": "grace@example.com",
+    "createdAt": "2026-04-10T13:10:00Z",
+    "tags": [
+      "api",
+      "rate-limit",
+      "batch"
+    ]
+  },
+  {
+    "id": "fb_008",
+    "text": "The new dashboard redesign is clean. Charts are easy to read now.",
+    "rating": 5,
+    "category": "ux",
+    "author": "heidi@example.com",
+    "createdAt": "2026-04-12T15:30:00Z",
+    "tags": [
+      "dashboard",
+      "redesign",
+      "positive"
+    ]
+  },
+  {
+    "id": "fb_009",
+    "text": "Please add webhook support for real-time notifications.",
+    "rating": 4,
+    "category": "feature-request",
+    "author": "ivan@example.com",
+    "createdAt": "2026-04-14T10:45:00Z",
+    "tags": [
+      "webhooks",
+      "notifications",
+      "integration"
+    ]
+  },
+  {
+    "id": "fb_010",
+    "text": "Session timeout is too short. Keeps logging me out mid-task.",
+    "rating": 2,
+    "category": "bug",
+    "author": "judy@example.com",
+    "createdAt": "2026-04-15T17:00:00Z",
+    "tags": [
+      "session",
+      "auth",
+      "timeout"
+    ]
+  }
+]
