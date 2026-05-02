@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fb_001",
+    "message": "Love the new dashboard, the dark mode is gorgeous.",
+    "rating": 5,
+    "sentiment": "positive",
+    "category": "praise",
+    "user": "alice@example.com",
+    "createdAt": "2026-04-12T09:14:00.000Z"
+  },
+  {
+    "id": "fb_002",
+    "message": "CSV export is broken when there are unicode characters in the title.",
+    "rating": 2,
+    "sentiment": "negative",
+    "category": "bug",
+    "user": "bob@example.com",
+    "createdAt": "2026-04-15T17:42:00.000Z"
+  },
+  {
+    "id": "fb_003",
+    "message": "Could you add Slack notifications for new comments?",
+    "rating": 4,
+    "sentiment": "neutral",
+    "category": "feature",
+    "user": "carol@example.com",
+    "createdAt": "2026-04-18T11:03:00.000Z"
+  },
+  {
+    "id": "fb_004",
+    "message": "How do I invite a teammate without giving them billing access?",
+    "rating": 3,
+    "sentiment": "neutral",
+    "category": "question",
+    "user": "dan@example.com",
+    "createdAt": "2026-04-22T08:55:00.000Z"
+  },
+  {
+    "id": "fb_005",
+    "message": "The mobile app crashes on iOS 18 when opening a draft.",
+    "rating": 1,
+    "sentiment": "negative",
+    "category": "bug",
+    "user": "erin@example.com",
+    "createdAt": "2026-04-25T20:11:00.000Z"
+  }
+]
