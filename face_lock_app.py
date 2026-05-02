@@ -121,23 +121,30 @@ class FaceAnalyzer:
     def _estimate_skin_tone(self, image_np, landmarks) -> int:
         # Sample cheek area
         h, w, _ = image_np.shape
-        cheek_landmark = landmarks[234] # Left cheek area
+        cheek_landmark = landmarks[234]  # Left cheek area
         cx, cy = int(cheek_landmark.x * w), int(cheek_landmark.y * h)
 
         # Extract 10x10 patch
         patch = image_np[max(0, cy-5):min(h, cy+5), max(0, cx-5):min(w, cx+5)]
-        if patch.size == 0: return 3
+        if patch.size == 0:
+            return 3
 
-        avg_color = np.mean(patch, axis=(0,1))
+        avg_color = np.mean(patch, axis=(0, 1))
         # Very rough luminosity to Fitzpatrick mapping
         lum = 0.299 * avg_color[0] + 0.587 * avg_color[1] + 0.114 * avg_color[2]
 
-        if lum > 220: return 1
-        elif lum > 190: return 2
-        elif lum > 160: return 3
-        elif lum > 130: return 4
-        elif lum > 80: return 5
-        else: return 6
+        if lum > 220:
+            return 1
+        elif lum > 190:
+            return 2
+        elif lum > 160:
+            return 3
+        elif lum > 130:
+            return 4
+        elif lum > 80:
+            return 5
+        else:
+            return 6
 
     def analyze(self, image_np) -> Optional[FacialMeasurements]:
         results = self.face_mesh.process(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB))
@@ -198,21 +205,21 @@ class PromptGenerator:
         negatives = []
 
         # Gonial Angle (Jaw)
-        if metrics.gonial_angle < 125: # Sharp/Square
+        if metrics.gonial_angle < 125:  # Sharp/Square
             negatives.extend(["receding chin", "weak jaw", "round face", "soft jawline", "fat neck"])
-        elif metrics.gonial_angle > 145: # Soft/Round
+        elif metrics.gonial_angle > 145:  # Soft/Round
             negatives.extend(["square jaw", "chiseled jaw", "masculine jaw", "sharp angles"])
 
         # Canthal Tilt
-        if metrics.canthal_tilt > 2: # Positive/Hunter
+        if metrics.canthal_tilt > 2:  # Positive/Hunter
             negatives.extend(["downturned eyes", "sad eyes", "droopy eyelids", "prey eyes"])
-        elif metrics.canthal_tilt < -2: # Negative/Doe
+        elif metrics.canthal_tilt < -2:  # Negative/Doe
             negatives.extend(["upturned eyes", "cat eyes", "aggressive expression"])
 
         # Facial Index
-        if metrics.facial_index > 90: # Oblong
+        if metrics.facial_index > 90:  # Oblong
             negatives.extend(["wide face", "square face", "short face", "compressed face"])
-        elif metrics.facial_index < 80: # Square/Round
+        elif metrics.facial_index < 80:  # Square/Round
             negatives.extend(["long face", "oblong face", "horse face"])
 
         return ", ".join(negatives)
@@ -221,7 +228,8 @@ class PromptGenerator:
         # -- POSITIVE DESCRIPTORS --
         jaw_desc = f"jaw angle {int(metrics.gonial_angle)} degrees, sharp definition" if metrics.gonial_angle < 125 else "soft rounded jawline"
         eye_desc = "positive canthal tilt, hunter eyes" if metrics.canthal_tilt > 2 else "neutral almond eyes"
-        if metrics.canthal_tilt < -2: eye_desc = "negative canthal tilt, doe eyes"
+        if metrics.canthal_tilt < -2:
+            eye_desc = "negative canthal tilt, doe eyes"
 
         face_shape = "oblong face structure" if metrics.facial_index > 90 else "broad face structure"
         cheekbones = "high zygomatic arches" if metrics.zygomatic_prominence > 1.4 else "soft cheeks"
@@ -247,7 +255,7 @@ class PromptGenerator:
                 "positive": f"{core_prompt}, cinematic lighting, shot on 35mm, depth of field",
                 "negative": f"{anti_drift}, blur, distortion, anime, illustration, bad anatomy"
             }
-        else: # Reve / Generic
+        else:  # Reve / Generic
             return {
                 "positive": core_prompt,
                 "negative": f"{anti_drift}, low quality, jpeg artifacts, bad anatomy"
@@ -262,8 +270,8 @@ class DriftDetector:
 
         # Compare key metrics
         metrics = {
-            "Gonial Angle (Jaw)": (target.gonial_angle, generated.gonial_angle, 10.0), # Higher absolute tolerance for angles
-            "Canthal Tilt": (target.canthal_tilt, generated.canthal_tilt, 2.0), # Tight tolerance
+            "Gonial Angle (Jaw)": (target.gonial_angle, generated.gonial_angle, 10.0),  # Higher absolute tolerance for angles
+            "Canthal Tilt": (target.canthal_tilt, generated.canthal_tilt, 2.0),  # Tight tolerance
             "Facial Index": (target.facial_index, generated.facial_index, 5.0),
             "Eye Shape Ratio": (target.eye_shape_ratio, generated.eye_shape_ratio, 0.1)
         }
@@ -272,8 +280,9 @@ class DriftDetector:
             diff = abs(t - g)
             is_drift = diff > tol
 
-            status = "FAIL" if is_drift else "PASS"
-            if is_drift: drift_detected = True
+            status = "FAIL ❌" if is_drift else "PASS ✅"
+            if is_drift:
+                drift_detected = True
 
             report.append({
                 "Metric": name,
@@ -289,7 +298,7 @@ class DriftDetector:
 # --- STREAMLIT UI ---
 
 def main():
-    st.sidebar.title("Face Lock")
+    st.sidebar.title("Face Lock 🔒")
     st.sidebar.markdown("Biometric Character Consistency Pack")
 
     mode = st.sidebar.radio("Workflow Mode", ["Synthetic (BIPA-Safe)", "Real Face (BIPA-Regulated)"])
@@ -314,7 +323,7 @@ def main():
     st.subheader("1. Reference Biometrics")
 
     if mode == "Real Face (BIPA-Regulated)":
-        st.warning("BIPA MODE ACTIVE: Consent required for real facial analysis.")
+        st.warning("⚠️ BIPA MODE ACTIVE: Consent required for real facial analysis.")
         subject_id = st.text_input("Subject Identifier (e.g., Email/ID)")
         consent_check = st.checkbox("I certify that written consent has been obtained from the subject.")
 
@@ -346,7 +355,7 @@ def main():
                     st.session_state.locked_metrics = metrics
                     with col2:
                         st.json(metrics.to_dict())
-                        st.success("Biometrics Locked")
+                        st.success("✅ Biometrics Locked")
                 else:
                     st.error("No face detected in reference image.")
 
@@ -398,9 +407,9 @@ def main():
                 with c2:
                     st.write("### Drift Report")
                     if report["has_drift"]:
-                        st.error("DRIFT DETECTED")
+                        st.error("❌ DRIFT DETECTED")
                     else:
-                        st.success("CONSISTENT")
+                        st.success("✅ CONSISTENT")
 
                     st.dataframe(report["details"])
             else:
