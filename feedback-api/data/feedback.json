@@ -1,0 +1,47 @@
+[
+  {
+    "id": "a1b2c3d4-0001",
+    "author": "alice",
+    "rating": 5,
+    "category": "feature",
+    "message": "Love the new dashboard — the filter controls are exactly what I needed.",
+    "createdAt": "2025-04-01T09:00:00Z",
+    "updatedAt": "2025-04-01T09:00:00Z"
+  },
+  {
+    "id": "a1b2c3d4-0002",
+    "author": "bob",
+    "rating": 3,
+    "category": "bug",
+    "message": "Search results improved after the patch.",
+    "createdAt": "2025-04-02T11:30:00Z",
+    "updatedAt": "2026-05-02T23:11:30.884Z"
+  },
+  {
+    "id": "a1b2c3d4-0003",
+    "author": "carol",
+    "rating": 4,
+    "category": "general",
+    "message": "Overall great product, onboarding docs could be clearer.",
+    "createdAt": "2025-04-03T14:00:00Z",
+    "updatedAt": "2025-04-03T14:00:00Z"
+  },
+  {
+    "id": "a1b2c3d4-0004",
+    "author": "dave",
+    "rating": 1,
+    "category": "bug",
+    "message": "App crashes on iOS 17.4 when opening the settings panel.",
+    "createdAt": "2025-04-04T08:15:00Z",
+    "updatedAt": "2025-04-04T08:15:00Z"
+  },
+  {
+    "id": "a1b2c3d4-0005",
+    "author": "eve",
+    "rating": 5,
+    "category": "feature",
+    "message": "CSV export works perfectly. Would love PDF export next.",
+    "createdAt": "2025-04-05T16:45:00Z",
+    "updatedAt": "2025-04-05T16:45:00Z"
+  }
+]
