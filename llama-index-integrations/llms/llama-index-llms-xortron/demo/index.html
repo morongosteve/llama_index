@@ -6,7 +6,6 @@
     <title>XortronOS // CyberDesktop</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- FIX #7: moved @import to <link> tags to avoid render-blocking -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
@@ -51,6 +50,10 @@
             font-family: 'Share Tech Mono', monospace;
             color: #00ff00;
             text-shadow: 0 0 5px #00ff00;
+        }
+
+        .terminal input {
+            caret-color: transparent;
         }
 
         .glow-text {
@@ -168,6 +171,36 @@
         .window-header button:hover {
             background-color: rgba(255,255,255,0.1);
         }
+
+        .hack-tool-card {
+            transition: all 0.2s;
+        }
+        .hack-tool-card:hover {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 10px var(--primary);
+        }
+        .hack-tool-card.active {
+            border-color: #22c55e !important;
+            box-shadow: 0 0 10px #22c55e;
+        }
+
+        .tool-output {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #00ff00;
+            white-space: pre-wrap;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .file-sidebar-item.active {
+            background: rgba(0, 240, 255, 0.15);
+            border-left: 2px solid var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -235,7 +268,7 @@
                     <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
                     <span class="cyber-font ml-2">Xortron-Files</span>
                 </div>
-                <div class="text-xs">/root/files</div>
+                <div class="text-xs" id="file-path-display">/root/files</div>
                 <div class="flex">
                     <button class="px-2" onclick="minimizeWindow('file-explorer')" title="Minimize">_</button>
                     <button class="px-2" onclick="maximizeWindow('file-explorer')" title="Maximize">&#x25A1;</button>
@@ -244,70 +277,38 @@
             </div>
             <div class="p-2 h-[calc(100%-35px)] overflow-auto">
                 <div class="flex h-full">
-                    <div class="w-1/4 border-r border-gray-700 pr-2">
+                    <div class="w-1/4 border-r border-gray-700 pr-2" id="file-sidebar">
                         <div class="text-xs text-gray-400 mb-2">LOCATIONS</div>
-                        <div class="file flex items-center py-1 cursor-pointer">
+                        <div class="file file-sidebar-item flex items-center py-1 cursor-pointer active" onclick="navigateDir('home')">
                             <i class="fas fa-home mr-2 text-blue-400"></i>
                             <span>Home</span>
                         </div>
-                        <div class="file flex items-center py-1 cursor-pointer">
+                        <div class="file file-sidebar-item flex items-center py-1 cursor-pointer" onclick="navigateDir('desktop')">
                             <i class="fas fa-desktop mr-2 text-purple-400"></i>
                             <span>Desktop</span>
                         </div>
-                        <div class="file flex items-center py-1 cursor-pointer">
+                        <div class="file file-sidebar-item flex items-center py-1 cursor-pointer" onclick="navigateDir('downloads')">
                             <i class="fas fa-download mr-2 text-green-400"></i>
                             <span>Downloads</span>
                         </div>
-                        <div class="file flex items-center py-1 cursor-pointer">
+                        <div class="file file-sidebar-item flex items-center py-1 cursor-pointer" onclick="navigateDir('data')">
                             <i class="fas fa-database mr-2 text-yellow-400"></i>
                             <span>Data</span>
                         </div>
-                        <div class="file flex items-center py-1 cursor-pointer">
+                        <div class="file file-sidebar-item flex items-center py-1 cursor-pointer" onclick="navigateDir('network')">
                             <i class="fas fa-network-wired mr-2 text-red-400"></i>
                             <span>Network</span>
                         </div>
                     </div>
                     <div class="w-3/4 pl-2">
                         <div class="flex justify-between items-center mb-2">
-                            <div class="text-xs text-gray-400">/root/files</div>
+                            <div class="text-xs text-gray-400" id="file-current-path">/root/files</div>
                             <div class="flex">
-                                <button class="text-xs px-2 py-1 bg-gray-800 mr-1">New Folder</button>
-                                <button class="text-xs px-2 py-1 bg-gray-800">Upload</button>
+                                <button class="text-xs px-2 py-1 bg-gray-800 mr-1" onclick="showNotification('Folder created: NewFolder_' + Date.now())">New Folder</button>
+                                <button class="text-xs px-2 py-1 bg-gray-800" onclick="showNotification('Upload dialog opened. (Simulated)')">Upload</button>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-folder text-yellow-500"></i></div>
-                                <div class="text-xs truncate">Documents</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-folder text-yellow-500"></i></div>
-                                <div class="text-xs truncate">Hack Tools</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-file-code text-blue-400"></i></div>
-                                <div class="text-xs truncate">script.py</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-file-alt text-gray-400"></i></div>
-                                <div class="text-xs truncate">Weaponizer.txt</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-file-archive text-purple-400"></i></div>
-                                <div class="text-xs truncate">m3th4mph3t4m1n3.zip</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-key text-green-400"></i></div>
-                                <div class="text-xs truncate">keys.asc</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-database text-red-400"></i></div>
-                                <div class="text-xs truncate">passwords.db</div>
-                            </div>
-                            <div class="file text-center cursor-pointer">
-                                <div class="text-3xl mb-1"><i class="fas fa-file-image text-pink-400"></i></div>
-                                <div class="text-xs truncate">PornHub.com</div>
-                            </div>
+                        <div id="file-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         </div>
                     </div>
                 </div>
@@ -315,7 +316,7 @@
         </div>
 
         <!-- Hack Tools Window -->
-        <div id="hack-tools-window" class="window absolute top-48 left-48 w-1/2 h-1/3 hidden" style="z-index: 8;">
+        <div id="hack-tools-window" class="window absolute top-48 left-48 w-1/2 h-1/2 hidden" style="z-index: 8;">
             <div class="window-header flex justify-between items-center cursor-move">
                 <div class="flex items-center">
                     <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
@@ -331,37 +332,38 @@
                 </div>
             </div>
             <div class="p-4 h-[calc(100%-35px)] overflow-auto">
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="p-3 border border-gray-700 hover:border-blue-400 cursor-pointer rounded-md">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="hack-tools-grid">
+                    <div class="hack-tool-card p-3 border border-gray-700 cursor-pointer rounded-md" onclick="runHackTool('portscan')">
                         <div class="text-xl mb-2"><i class="fas fa-crosshairs text-red-400"></i> Port Scanner</div>
                         <div class="text-xs text-gray-400">Scan for open ports and services</div>
                     </div>
-                    <div class="p-3 border border-gray-700 hover:border-blue-400 cursor-pointer rounded-md">
+                    <div class="hack-tool-card p-3 border border-gray-700 cursor-pointer rounded-md" onclick="runHackTool('bruteforce')">
                         <div class="text-xl mb-2"><i class="fas fa-user-lock text-green-400"></i> Brute Force</div>
                         <div class="text-xs text-gray-400">Password cracking utility</div>
                     </div>
-                    <div class="p-3 border border-gray-700 hover:border-blue-400 cursor-pointer rounded-md">
+                    <div class="hack-tool-card p-3 border border-gray-700 cursor-pointer rounded-md" onclick="runHackTool('sqlinject')">
                         <div class="text-xl mb-2"><i class="fas fa-code text-yellow-400"></i> SQL Inject</div>
                         <div class="text-xs text-gray-400">Database penetration tool</div>
                     </div>
-                    <div class="p-3 border border-gray-700 hover:border-blue-400 cursor-pointer rounded-md">
+                    <div class="hack-tool-card p-3 border border-gray-700 cursor-pointer rounded-md" onclick="runHackTool('mitm')">
                         <div class="text-xl mb-2"><i class="fas fa-network-wired text-purple-400"></i> MITM</div>
                         <div class="text-xs text-gray-400">Man-in-the-middle attack</div>
                     </div>
-                    <div class="p-3 border border-gray-700 hover:border-blue-400 cursor-pointer rounded-md">
+                    <div class="hack-tool-card p-3 border border-gray-700 cursor-pointer rounded-md" onclick="runHackTool('exploitdb')">
                         <div class="text-xl mb-2"><i class="fas fa-bug text-blue-400"></i> Exploit DB</div>
                         <div class="text-xs text-gray-400">Vulnerability database</div>
                     </div>
-                    <div class="p-3 border border-gray-700 hover:border-blue-400 cursor-pointer rounded-md">
+                    <div class="hack-tool-card p-3 border border-gray-700 cursor-pointer rounded-md" onclick="runHackTool('anonymizer')">
                         <div class="text-xl mb-2"><i class="fas fa-mask text-pink-400"></i> Anonymizer</div>
                         <div class="text-xs text-gray-400">TOR/VPN configuration</div>
                     </div>
                 </div>
+                <div id="hack-tool-output" class="tool-output hidden"></div>
             </div>
         </div>
 
         <!-- Network Window -->
-        <div id="network-window" class="window absolute top-64 left-64 w-1/3 h-1/3 hidden" style="z-index: 7;">
+        <div id="network-window" class="window absolute top-64 left-64 w-1/3 h-1/2 hidden" style="z-index: 7;">
             <div class="window-header flex justify-between items-center cursor-move">
                 <div class="flex items-center">
                     <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
@@ -369,7 +371,7 @@
                     <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
                     <span class="cyber-font ml-2">Network Monitor</span>
                 </div>
-                <div class="text-xs">12 active connections</div>
+                <div class="text-xs" id="net-conn-count">12 active connections</div>
                 <div class="flex">
                     <button class="px-2" onclick="minimizeWindow('network')" title="Minimize">_</button>
                     <button class="px-2" onclick="maximizeWindow('network')" title="Maximize">&#x25A1;</button>
@@ -380,53 +382,29 @@
                 <div class="mb-4">
                     <div class="flex justify-between text-xs mb-1">
                         <span>Bandwidth Usage</span>
-                        <span>3.7 MB/s &#x2193; | 1.2 MB/s &#x2191;</span>
+                        <span id="net-bandwidth">3.7 MB/s &#x2193; | 1.2 MB/s &#x2191;</span>
                     </div>
                     <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500" style="width: 65%"></div>
+                        <div id="net-bar" class="h-full bg-gradient-to-r from-blue-500 to-purple-500" style="width: 65%"></div>
                     </div>
                 </div>
 
-                <div class="text-xs text-gray-400 mb-2">ACTIVE CONNECTIONS</div>
-                <div class="space-y-2">
-                    <div class="flex justify-between items-center p-2 bg-gray-900 rounded-md">
-                        <div class="flex items-center">
-                            <i class="fas fa-server text-green-400 mr-2"></i>
-                            <span>192.168.1.1:443</span>
-                        </div>
-                        <div class="text-xs text-green-400">ENCRYPTED</div>
-                    </div>
-                    <div class="flex justify-between items-center p-2 bg-gray-900 rounded-md">
-                        <div class="flex items-center">
-                            <i class="fas fa-globe text-blue-400 mr-2"></i>
-                            <span>104.18.25.36:80</span>
-                        </div>
-                        <div class="text-xs text-yellow-400">UNSECURED</div>
-                    </div>
-                    <div class="flex justify-between items-center p-2 bg-gray-900 rounded-md">
-                        <div class="flex items-center">
-                            <i class="fas fa-database text-purple-400 mr-2"></i>
-                            <span>74.91.123.45:3306</span>
-                        </div>
-                        <div class="text-xs text-red-400">VULNERABLE</div>
-                    </div>
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-xs text-gray-400">ACTIVE CONNECTIONS</div>
+                    <button class="text-xs px-2 py-1" onclick="refreshNetwork()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+                </div>
+                <div id="net-connections" class="space-y-2">
                 </div>
 
                 <div class="mt-4">
                     <div class="text-xs text-gray-400 mb-2">NETWORK MAP</div>
-                    <div class="bg-gray-900 p-2 text-xs rounded-md">
-                        <div class="mb-1">&#x2514;&#x2500; [YOU] 192.168.1.105</div>
-                        <div class="ml-4 mb-1">&#x251C;&#x2500; Router 192.168.1.1</div>
-                        <div class="ml-4 mb-1">&#x2502;  &#x251C;&#x2500; Device 192.168.1.102 (Mobile)</div>
-                        <div class="ml-4 mb-1">&#x2502;  &#x2514;&#x2500; Device 192.168.1.103 (Laptop)</div>
-                        <div class="ml-4">&#x2514;&#x2500; [TOR Exit Node] 74.125.24.102</div>
+                    <div class="bg-gray-900 p-2 text-xs rounded-md" id="net-map">
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Browser Window -->
-        <!-- FIX #8: removed deprecated frameborder, using CSS border:none instead -->
         <div id="browser-window" class="window absolute top-20 left-40 w-1/2 h-3/4 hidden" style="z-index: 6;">
             <div class="window-header flex justify-between items-center cursor-move">
                 <div class="flex items-center">
@@ -443,11 +421,10 @@
                 </div>
             </div>
             <div class="browser-nav flex items-center p-1">
-                <button class="px-2 mx-1" title="Back"><i class="fas fa-arrow-left"></i></button>
-                <button class="px-2 mx-1" title="Forward"><i class="fas fa-arrow-right"></i></button>
-                <button class="px-2 mx-1" title="Reload"><i class="fas fa-redo"></i></button>
-                <button class="px-2 mx-1" title="Home"><i class="fas fa-home"></i></button>
-                <!-- FIX #4: added onkeydown handler for Enter key -->
+                <button class="px-2 mx-1" title="Back" onclick="browserBack()"><i class="fas fa-arrow-left"></i></button>
+                <button class="px-2 mx-1" title="Forward" onclick="browserForward()"><i class="fas fa-arrow-right"></i></button>
+                <button class="px-2 mx-1" title="Reload" onclick="browserReload()"><i class="fas fa-redo"></i></button>
+                <button class="px-2 mx-1" title="Home" onclick="browserHome()"><i class="fas fa-home"></i></button>
                 <input type="text" class="url-bar flex-1 mx-1" value="XORTRON" id="browser-url"
                        onkeydown="if(event.key==='Enter')navigateBrowser()">
                 <button class="px-2 mx-1 bg-blue-600" onclick="navigateBrowser()" title="Go"><i class="fas fa-arrow-right"></i></button>
@@ -460,6 +437,7 @@
                     style="background-color: black; border: none;"
                     id="browser-frame"
                     title="Browser Content"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                 ></iframe>
             </div>
         </div>
@@ -504,10 +482,10 @@
 
     <script>
         // ---------------------------------------------------------------
-        // Matrix background effect
+        // Matrix background
         // ---------------------------------------------------------------
-        const canvas = document.getElementById('matrix');
-        const ctx = canvas.getContext('2d');
+        var canvas = document.getElementById('matrix');
+        var ctx = canvas.getContext('2d');
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -516,120 +494,95 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        const chars = '01';
-        const fontSize = 14;
-        let columns = Math.floor(canvas.width / fontSize);
-        let drops = [];
-        for (let i = 0; i < columns; i++) {
+        var chars = '01';
+        var fontSize = 14;
+        var columns = Math.floor(canvas.width / fontSize);
+        var drops = [];
+        for (var i = 0; i < columns; i++) {
             drops[i] = 1;
         }
 
         function drawMatrix() {
-            // FIX #5: properly resize drops array on window resize
-            const newColumns = Math.floor(canvas.width / fontSize);
+            var newColumns = Math.floor(canvas.width / fontSize);
             if (newColumns !== columns) {
-                const newDrops = [];
-                for (let i = 0; i < newColumns; i++) {
-                    newDrops[i] = drops[i] !== undefined ? drops[i] : 1;
+                var newDrops = [];
+                for (var j = 0; j < newColumns; j++) {
+                    newDrops[j] = drops[j] !== undefined ? drops[j] : 1;
                 }
                 drops = newDrops;
                 columns = newColumns;
             }
-
             ctx.fillStyle = 'rgba(5, 5, 15, 0.05)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
             ctx.fillStyle = '#00f0ff';
             ctx.font = fontSize + 'px monospace';
-
-            for (let i = 0; i < drops.length; i++) {
-                const text = chars.charAt(Math.floor(Math.random() * chars.length));
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                    drops[i] = 0;
+            for (var k = 0; k < drops.length; k++) {
+                var text = chars.charAt(Math.floor(Math.random() * chars.length));
+                ctx.fillText(text, k * fontSize, drops[k] * fontSize);
+                if (drops[k] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[k] = 0;
                 }
-                drops[i]++;
+                drops[k]++;
             }
         }
-
-        const matrixInterval = setInterval(drawMatrix, 50);
-
-        // ---------------------------------------------------------------
-        // Escape helper for XSS prevention
-        // ---------------------------------------------------------------
-        // FIX #1: sanitize user input before inserting into DOM
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
+        setInterval(drawMatrix, 50);
 
         // ---------------------------------------------------------------
         // Window management
         // ---------------------------------------------------------------
-        let highestZIndex = 10;
+        var highestZIndex = 10;
 
         function openApp(appId) {
-            const windowEl = document.getElementById(appId + '-window');
-            if (!windowEl) {
-                console.error('Window element for ' + appId + ' not found.');
-                return;
-            }
+            var windowEl = document.getElementById(appId + '-window');
+            if (!windowEl) return;
             windowEl.classList.remove('hidden');
             bringToFront(appId);
-
-            showNotification(appId.replace(/-/g, ' ') + ' application launched.');
+            showNotification(appId.replace(/-/g, ' ') + ' launched.');
 
             if (appId === 'terminal') {
-                setTimeout(function() {
-                    const input = document.querySelector('.terminal-input-active');
-                    if (input) input.focus();
-                }, 0);
+                requestAnimationFrame(function() {
+                    var inp = document.querySelector('.terminal-input-active');
+                    if (inp) inp.focus();
+                });
+            }
+            if (appId === 'file-explorer') {
+                navigateDir('home');
+            }
+            if (appId === 'network') {
+                refreshNetwork();
             }
         }
 
         function closeWindow(appId) {
-            const windowEl = document.getElementById(appId + '-window');
-            if (windowEl) {
-                windowEl.classList.add('hidden');
-                showNotification(appId.replace(/-/g, ' ') + ' closed.');
-            }
+            var windowEl = document.getElementById(appId + '-window');
+            if (windowEl) windowEl.classList.add('hidden');
         }
 
         function minimizeWindow(appId) {
-            showNotification(appId.replace(/-/g, ' ') + ' minimized.');
-            const windowEl = document.getElementById(appId + '-window');
-            if (windowEl) {
-                windowEl.classList.add('hidden');
-            }
+            var windowEl = document.getElementById(appId + '-window');
+            if (windowEl) windowEl.classList.add('hidden');
         }
 
-        // FIX #3: use getBoundingClientRect to capture actual rendered dimensions
         function maximizeWindow(appId) {
-            const windowEl = document.getElementById(appId + '-window');
+            var windowEl = document.getElementById(appId + '-window');
             if (!windowEl) return;
             if (windowEl.dataset.isMaximized === 'true') {
-                // Restore
                 windowEl.style.width = windowEl.dataset.originalWidth || '';
                 windowEl.style.height = windowEl.dataset.originalHeight || '';
                 windowEl.style.top = windowEl.dataset.originalTop || '';
                 windowEl.style.left = windowEl.dataset.originalLeft || '';
-                // Re-apply original Tailwind classes if they were removed
                 if (windowEl.dataset.originalClasses) {
                     windowEl.className = windowEl.dataset.originalClasses;
                     windowEl.classList.remove('hidden');
                 }
                 windowEl.dataset.isMaximized = 'false';
             } else {
-                // Save the actual computed dimensions (works even with Tailwind classes)
-                const rect = windowEl.getBoundingClientRect();
+                var rect = windowEl.getBoundingClientRect();
                 windowEl.dataset.originalWidth = rect.width + 'px';
                 windowEl.dataset.originalHeight = rect.height + 'px';
                 windowEl.dataset.originalTop = rect.top + 'px';
                 windowEl.dataset.originalLeft = rect.left + 'px';
                 windowEl.dataset.originalClasses = windowEl.className;
-                // Maximize: override Tailwind w-/h- classes with inline styles
                 windowEl.style.width = '100%';
                 windowEl.style.height = 'calc(100% - 40px)';
                 windowEl.style.top = '0';
@@ -640,131 +593,122 @@
         }
 
         function bringToFront(appId) {
-            const windowEl = document.getElementById(appId + '-window');
+            var windowEl = document.getElementById(appId + '-window');
             if (windowEl) {
                 highestZIndex++;
                 windowEl.style.zIndex = highestZIndex;
             }
         }
 
-        // Make windows draggable
+        // Draggable windows
         document.querySelectorAll('.window-header').forEach(function(header) {
             header.addEventListener('mousedown', function(e) {
-                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-                    return;
-                }
-                const windowEl = this.parentElement;
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                var windowEl = this.parentElement;
                 if (windowEl.dataset.isMaximized === 'true') return;
                 bringToFront(windowEl.id.replace('-window', ''));
 
-                const offsetX = e.clientX - windowEl.getBoundingClientRect().left;
-                const offsetY = e.clientY - windowEl.getBoundingClientRect().top;
+                var offsetX = e.clientX - windowEl.getBoundingClientRect().left;
+                var offsetY = e.clientY - windowEl.getBoundingClientRect().top;
 
-                function moveWindow(moveEvent) {
-                    let newX = moveEvent.clientX - offsetX;
-                    let newY = moveEvent.clientY - offsetY;
-                    const taskbarHeight = 40;
-                    // FIX #6: clamp to viewport without locking large windows
-                    // Allow dragging to at least 0, but don't force windows smaller
-                    // than viewport to negative coords
-                    const maxX = Math.max(0, window.innerWidth - windowEl.offsetWidth);
-                    const maxY = Math.max(0, window.innerHeight - windowEl.offsetHeight - taskbarHeight);
-                    windowEl.style.left = Math.max(0, Math.min(newX, maxX)) + 'px';
-                    windowEl.style.top = Math.max(0, Math.min(newY, maxY)) + 'px';
+                function moveWindow(ev) {
+                    var maxX = Math.max(0, window.innerWidth - windowEl.offsetWidth);
+                    var maxY = Math.max(0, window.innerHeight - windowEl.offsetHeight - 40);
+                    windowEl.style.left = Math.max(0, Math.min(ev.clientX - offsetX, maxX)) + 'px';
+                    windowEl.style.top = Math.max(0, Math.min(ev.clientY - offsetY, maxY)) + 'px';
                 }
-
                 function stopMove() {
                     document.removeEventListener('mousemove', moveWindow);
                     document.removeEventListener('mouseup', stopMove);
                 }
-
                 document.addEventListener('mousemove', moveWindow);
                 document.addEventListener('mouseup', stopMove);
             });
         });
 
         // ---------------------------------------------------------------
-        // Terminal functionality
+        // Terminal
         // ---------------------------------------------------------------
-        const terminalContentEl = document.getElementById('terminal-content');
-
-        // FIX #2: use class-based selector instead of duplicate IDs
-        // Terminal prompt counter for unique IDs
-        let promptCounter = 0;
+        var terminalContentEl = document.getElementById('terminal-content');
+        var promptCounter = 0;
 
         function addNewTerminalPrompt() {
             if (!terminalContentEl) return;
             promptCounter++;
-            const newPromptContainer = document.createElement('div');
-            newPromptContainer.className = 'flex items-center';
+            var container = document.createElement('div');
+            container.className = 'flex items-center';
 
-            const promptSpan = document.createElement('span');
-            promptSpan.className = 'text-green-500';
-            promptSpan.textContent = 'root@xortron-os:~#';
+            var prompt = document.createElement('span');
+            prompt.className = 'text-green-500';
+            prompt.textContent = 'root@xortron-os:~#';
 
-            const input = document.createElement('input');
+            var input = document.createElement('input');
             input.type = 'text';
             input.className = 'bg-transparent border-none outline-none flex-1 ml-2 text-green-500 terminal-input-active';
             input.id = 'terminal-input-' + promptCounter;
-            input.setAttribute('autofocus', '');
 
-            const cursor = document.createElement('span');
+            var cursor = document.createElement('span');
             cursor.className = 'cursor-blink';
-            cursor.textContent = '\u2588'; // block char
+            cursor.textContent = '█';
 
-            newPromptContainer.appendChild(promptSpan);
-            newPromptContainer.appendChild(input);
-            newPromptContainer.appendChild(cursor);
-
-            terminalContentEl.appendChild(newPromptContainer);
+            container.appendChild(prompt);
+            container.appendChild(input);
+            container.appendChild(cursor);
+            terminalContentEl.appendChild(container);
             input.focus();
         }
 
         if (terminalContentEl) {
-            // Event delegation for dynamically added input fields
-            terminalContentEl.addEventListener('keydown', function(e) {
-                if (e.target.classList.contains('terminal-input-active') && e.key === 'Enter') {
-                    const command = e.target.value.trim();
-                    e.target.disabled = true;
-                    e.target.classList.remove('terminal-input-active');
-
-                    // FIX #1: use textContent/escapeHtml to prevent XSS
-                    const commandDisplay = document.createElement('div');
-                    commandDisplay.className = 'flex items-center';
-                    const promptSpan = document.createElement('span');
-                    promptSpan.className = 'text-green-500';
-                    promptSpan.textContent = 'root@xortron-os:~#';
-                    const cmdSpan = document.createElement('span');
-                    cmdSpan.className = 'ml-2';
-                    cmdSpan.textContent = command;
-                    commandDisplay.appendChild(promptSpan);
-                    commandDisplay.appendChild(cmdSpan);
-
-                    // Replace the prompt line with static text
-                    e.target.parentElement.replaceWith(commandDisplay);
-
-                    if (command) {
-                        processCommand(command);
-                    }
-
-                    // Add new prompt only if not clearing or exiting
-                    if (command !== 'clear' && command !== 'exit') {
-                        addNewTerminalPrompt();
-                    }
-                    terminalContentEl.scrollTop = terminalContentEl.scrollHeight;
+            // Click anywhere in terminal to focus input
+            terminalContentEl.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'INPUT') {
+                    var inp = terminalContentEl.querySelector('.terminal-input-active');
+                    if (inp) inp.focus();
                 }
             });
 
-            // Create initial prompt
+            terminalContentEl.addEventListener('keydown', function(e) {
+                if (!e.target.classList.contains('terminal-input-active') || e.key !== 'Enter') return;
+
+                var command = e.target.value.trim();
+                var promptContainer = e.target.parentElement;
+                e.target.disabled = true;
+                e.target.classList.remove('terminal-input-active');
+
+                var commandDisplay = document.createElement('div');
+                commandDisplay.className = 'flex items-center';
+                var ps = document.createElement('span');
+                ps.className = 'text-green-500';
+                ps.textContent = 'root@xortron-os:~#';
+                commandDisplay.appendChild(ps);
+
+                if (command) {
+                    var cs = document.createElement('span');
+                    cs.className = 'ml-2';
+                    cs.textContent = command;
+                    commandDisplay.appendChild(cs);
+                }
+
+                promptContainer.replaceWith(commandDisplay);
+
+                if (command) {
+                    processCommand(command);
+                }
+                if (command !== 'clear' && command !== 'exit') {
+                    addNewTerminalPrompt();
+                }
+                terminalContentEl.scrollTop = terminalContentEl.scrollHeight;
+            });
+
             addNewTerminalPrompt();
         }
 
         function processCommand(command) {
             if (!terminalContentEl) return;
-            const output = document.createElement('div');
+            var output = document.createElement('div');
             output.className = 'mb-2 whitespace-pre-wrap';
 
-            const commands = {
+            var commands = {
                 'help': 'Available commands:\n  clear      - Clear the terminal screen\n  ls         - List files (simulated)\n  scan       - Scan network (simulated)\n  hack       - Initiate penetration (simulated)\n  encrypt    - Encrypt data (simulated)\n  decrypt    - Decrypt data (simulated)\n  vpn        - Toggle VPN status (simulated)\n  browser    - Open DarkBrowser\n  date       - Display current date and time\n  whoami     - Display current user\n  neofetch   - Display system information (simulated)\n  exit       - Close terminal session',
                 'clear': function() {
                     terminalContentEl.innerHTML = '';
@@ -801,7 +745,7 @@
                     '  Memory: 128GiB / 256GiB',
             };
 
-            let cmdOutput = '';
+            var cmdOutput = '';
             if (commands[command]) {
                 if (typeof commands[command] === 'function') {
                     cmdOutput = commands[command]();
@@ -812,16 +756,12 @@
                 if (command === 'exit') {
                     output.textContent = cmdOutput;
                     terminalContentEl.appendChild(output);
-                    setTimeout(function() {
-                        closeWindow('terminal');
-                    }, 1000);
+                    setTimeout(function() { closeWindow('terminal'); }, 1000);
                     return;
                 } else if (command === 'browser') {
                     output.textContent = cmdOutput;
                     terminalContentEl.appendChild(output);
-                    setTimeout(function() {
-                        openApp('browser');
-                    }, 500);
+                    setTimeout(function() { openApp('browser'); }, 500);
                 } else if (command !== 'clear') {
                     output.textContent = cmdOutput;
                     terminalContentEl.appendChild(output);
@@ -834,14 +774,17 @@
         }
 
         // ---------------------------------------------------------------
-        // Browser functionality
+        // Browser — Back, Forward, Reload, Home all work
         // ---------------------------------------------------------------
-        function navigateBrowser() {
-            const urlInput = document.getElementById('browser-url');
-            const iframe = document.getElementById('browser-frame');
+        var browserHistory = ['https://xortron-chat.hf.space'];
+        var browserHistoryIdx = 0;
+        var BROWSER_HOME = 'https://xortron-chat.hf.space';
 
+        function navigateBrowser() {
+            var urlInput = document.getElementById('browser-url');
+            var iframe = document.getElementById('browser-frame');
             if (!urlInput || !iframe) return;
-            let url = urlInput.value.trim();
+            var url = urlInput.value.trim();
 
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 if (url.includes('.') && !url.includes(' ')) {
@@ -851,61 +794,364 @@
                 }
             }
 
+            // Trim forward history when navigating from a back position
+            browserHistory = browserHistory.slice(0, browserHistoryIdx + 1);
+            browserHistory.push(url);
+            browserHistoryIdx = browserHistory.length - 1;
+
             iframe.src = url;
             urlInput.value = url;
             showNotification('Navigating to: ' + url);
         }
 
+        function browserBack() {
+            if (browserHistoryIdx > 0) {
+                browserHistoryIdx--;
+                var url = browserHistory[browserHistoryIdx];
+                document.getElementById('browser-frame').src = url;
+                document.getElementById('browser-url').value = url;
+                showNotification('Back: ' + url);
+            }
+        }
+
+        function browserForward() {
+            if (browserHistoryIdx < browserHistory.length - 1) {
+                browserHistoryIdx++;
+                var url = browserHistory[browserHistoryIdx];
+                document.getElementById('browser-frame').src = url;
+                document.getElementById('browser-url').value = url;
+                showNotification('Forward: ' + url);
+            }
+        }
+
+        function browserReload() {
+            var iframe = document.getElementById('browser-frame');
+            if (iframe) {
+                iframe.src = iframe.src;
+                showNotification('Reloading page...');
+            }
+        }
+
+        function browserHome() {
+            var iframe = document.getElementById('browser-frame');
+            var urlInput = document.getElementById('browser-url');
+            if (iframe && urlInput) {
+                browserHistory.push(BROWSER_HOME);
+                browserHistoryIdx = browserHistory.length - 1;
+                iframe.src = BROWSER_HOME;
+                urlInput.value = BROWSER_HOME;
+                showNotification('Home: ' + BROWSER_HOME);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Hack Tools — each tool produces simulated output
+        // ---------------------------------------------------------------
+        var hackToolOutputs = {
+            portscan: function() {
+                var target = '192.168.1.' + Math.floor(Math.random() * 255);
+                return '[*] Starting Nmap scan on ' + target + '...\n' +
+                    '[+] PORT   STATE  SERVICE\n' +
+                    '[+] 22     open   ssh (OpenSSH 8.9)\n' +
+                    '[+] 80     open   http (nginx 1.22)\n' +
+                    '[+] 443    open   https (nginx 1.22)\n' +
+                    '[+] 3306   open   mysql (MariaDB 10.6)\n' +
+                    '[+] 8080   closed http-proxy\n' +
+                    '[+] 9090   filtered zeus-admin\n' +
+                    '[*] Scan complete: 6 ports checked, 4 open, 1 closed, 1 filtered.';
+            },
+            bruteforce: function() {
+                return '[*] Target: ssh://192.168.1.1:22\n' +
+                    '[*] Wordlist: /usr/share/wordlists/rockyou.txt (14,341,564 entries)\n' +
+                    '[*] Trying admin:password123 ... FAIL\n' +
+                    '[*] Trying admin:admin ... FAIL\n' +
+                    '[*] Trying root:toor ... FAIL\n' +
+                    '[*] Trying root:xortron777 ... SUCCESS!\n' +
+                    '[+] Valid credentials found: root:xortron777\n' +
+                    '[+] Session opened at ' + new Date().toISOString();
+            },
+            sqlinject: function() {
+                return "[*] Target: https://target.example.com/login\n" +
+                    "[*] Testing parameter: username\n" +
+                    "[*] Payload: ' OR 1=1 --\n" +
+                    "[+] SQL Injection DETECTED (MySQL 8.0)\n" +
+                    "[+] Dumping table: users (5 rows)\n" +
+                    "    id | username | email\n" +
+                    "    1  | admin    | admin@target.com\n" +
+                    "    2  | root     | root@target.com\n" +
+                    "[!] Warning: This is a simulated demonstration.";
+            },
+            mitm: function() {
+                return '[*] ARP Spoofing: gateway 192.168.1.1 <-> victim 192.168.1.103\n' +
+                    '[+] Forwarding enabled. Intercepting traffic...\n' +
+                    '[+] Captured: GET /api/auth HTTP/1.1\n' +
+                    '[+] Captured: Cookie: session=eyJhbGc...\n' +
+                    '[+] Captured: POST /api/transfer (amount=9999)\n' +
+                    '[*] 47 packets intercepted in 12 seconds.\n' +
+                    '[!] MITM session active. Press Ctrl+C to stop.';
+            },
+            exploitdb: function() {
+                return '[*] Querying ExploitDB for recent CVEs...\n' +
+                    '[+] CVE-2024-21762  | FortiOS RCE     | Critical | Exploit Available\n' +
+                    '[+] CVE-2024-3400   | PAN-OS RCE      | Critical | Exploit Available\n' +
+                    '[+] CVE-2024-27198  | JetBrains RCE   | Critical | Exploit Available\n' +
+                    '[+] CVE-2023-46805  | Ivanti Auth Byp  | High     | Exploit Available\n' +
+                    '[+] CVE-2023-4966   | Citrix Bleed     | Critical | Exploit Available\n' +
+                    '[*] 5 exploits loaded into toolkit.';
+            },
+            anonymizer: function() {
+                var nodes = ['Zurich_CH', 'Reykjavik_IS', 'Panama_PA', 'Singapore_SG', 'Bucharest_RO'];
+                var node = nodes[Math.floor(Math.random() * nodes.length)];
+                var ip = Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255) + '.' +
+                         Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255);
+                return '[*] Initializing TOR circuit...\n' +
+                    '[+] Guard node: Entry_DE_042\n' +
+                    '[+] Middle relay: Relay_NL_017\n' +
+                    '[+] Exit node: ' + node + '\n' +
+                    '[+] New public IP: ' + ip + '\n' +
+                    '[+] DNS leak protection: ENABLED\n' +
+                    '[+] WebRTC leak protection: ENABLED\n' +
+                    '[*] Anonymity level: MAXIMUM. You are now invisible.';
+            }
+        };
+
+        function runHackTool(toolId) {
+            var outputEl = document.getElementById('hack-tool-output');
+            if (!outputEl) return;
+
+            // Highlight active card
+            document.querySelectorAll('.hack-tool-card').forEach(function(c) { c.classList.remove('active'); });
+            event.currentTarget.classList.add('active');
+
+            outputEl.classList.remove('hidden');
+            outputEl.textContent = '[*] Initializing ' + toolId + '...';
+
+            setTimeout(function() {
+                if (hackToolOutputs[toolId]) {
+                    outputEl.textContent = hackToolOutputs[toolId]();
+                }
+            }, 600 + Math.random() * 800);
+        }
+
+        // ---------------------------------------------------------------
+        // File Explorer — navigable directories
+        // ---------------------------------------------------------------
+        var fileSystem = {
+            home: {
+                path: '/root',
+                files: [
+                    { name: 'Documents', icon: 'fa-folder', color: 'text-yellow-500', type: 'dir', target: 'documents' },
+                    { name: 'Hack Tools', icon: 'fa-folder', color: 'text-yellow-500', type: 'dir', target: 'hacktools' },
+                    { name: 'script.py', icon: 'fa-file-code', color: 'text-blue-400', type: 'file', content: '#!/usr/bin/env python3\nimport socket\nimport subprocess\n\ndef reverse_shell(host, port):\n    """Simulated reverse shell — for educational purposes only."""\n    print(f"Connecting to {host}:{port}...")\n    print("Connection established. Shell active.")\n\nif __name__ == "__main__":\n    reverse_shell("192.168.1.1", 4444)' },
+                    { name: 'Weaponizer.txt', icon: 'fa-file-alt', color: 'text-gray-400', type: 'file', content: 'XORTRON WEAPONIZER v2.1\n========================\nStatus: ARMED\nPayloads loaded: 7\nTarget queue: 3 hosts\n\nLast deployment: 2026-05-01 03:14:15 UTC' },
+                    { name: 'm3th4mph3t4m1n3.zip', icon: 'fa-file-archive', color: 'text-purple-400', type: 'file', content: '[ENCRYPTED ARCHIVE]\nSize: 4.2 GB\nEncryption: AES-256-GCM\nPassword required. Access denied.' },
+                    { name: 'keys.asc', icon: 'fa-key', color: 'text-green-400', type: 'file', content: '-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: GnuPG v2.4.0\n\nmQINBGX... [REDACTED]\n-----END PGP PUBLIC KEY BLOCK-----' },
+                    { name: 'passwords.db', icon: 'fa-database', color: 'text-red-400', type: 'file', content: '[ENCRYPTED DATABASE]\nEngine: SQLite 3.42\nTables: credentials, sessions, tokens\nRows: 1,337\nAccess: RESTRICTED' },
+                ]
+            },
+            desktop: {
+                path: '/root/Desktop',
+                files: [
+                    { name: 'README.txt', icon: 'fa-file-alt', color: 'text-gray-400', type: 'file', content: 'Welcome to XortronOS v7.7.7\n\nThis is a simulated hacker desktop environment.\nAll tools are for demonstration purposes only.\n\nStay safe. Stay anonymous. Stay Xortron.' },
+                    { name: 'todo.md', icon: 'fa-file-code', color: 'text-blue-400', type: 'file', content: '# TODO\n- [ ] Patch CVE-2024-21762\n- [x] Update TOR nodes\n- [ ] Rotate API keys\n- [x] Deploy honeypot on 10.0.0.5\n- [ ] Exfiltrate target database' },
+                ]
+            },
+            downloads: {
+                path: '/root/Downloads',
+                files: [
+                    { name: 'exploit_kit.tar.gz', icon: 'fa-file-archive', color: 'text-purple-400', type: 'file', content: '[ARCHIVE] exploit_kit.tar.gz\nSize: 128 MB\nContents: 14 exploit modules\nLast modified: 2026-04-28' },
+                    { name: 'payload.bin', icon: 'fa-file', color: 'text-red-400', type: 'file', content: '[BINARY] payload.bin\nSize: 2.1 MB\nType: ELF 64-bit executable\nArch: x86_64\nSignature: UNSIGNED' },
+                    { name: 'wordlist.txt', icon: 'fa-file-alt', color: 'text-gray-400', type: 'file', content: 'password\n123456\nadmin\nqwerty\nletmein\nmaster\ndragon\n... (14,341,557 more entries)' },
+                ]
+            },
+            data: {
+                path: '/root/data',
+                files: [
+                    { name: 'targets.csv', icon: 'fa-file-csv', color: 'text-green-400', type: 'file', content: 'ip,hostname,os,status\n192.168.1.1,gateway,RouterOS,scanned\n10.0.0.5,honeypot,Ubuntu 22.04,deployed\n104.18.25.36,target-alpha,Unknown,pending' },
+                    { name: 'logs.db', icon: 'fa-database', color: 'text-yellow-400', type: 'file', content: '[DATABASE] logs.db\nEngine: SQLite 3.42\nTables: access_log, error_log, audit_trail\nRows: 42,857\nLast entry: ' + new Date().toISOString() },
+                ]
+            },
+            network: {
+                path: '/root/network',
+                files: [
+                    { name: 'tor.conf', icon: 'fa-file-code', color: 'text-blue-400', type: 'file', content: 'SocksPort 9050\nControlPort 9051\nExitPolicy reject *:*\nBridgeRelay 1\nPublishServerDescriptor 0\nORPort 443' },
+                    { name: 'vpn.ovpn', icon: 'fa-file', color: 'text-green-400', type: 'file', content: 'client\ndev tun\nproto udp\nremote vpn.xortron.tech 1194\ncipher AES-256-GCM\nauth SHA512\nresolv-retry infinite\nnobind\npersist-key\npersist-tun' },
+                    { name: 'hosts.deny', icon: 'fa-file-alt', color: 'text-red-400', type: 'file', content: 'ALL: 10.0.0.0/8\nALL: 172.16.0.0/12\nsshd: ALL EXCEPT 192.168.1.0/24' },
+                ]
+            },
+            documents: {
+                path: '/root/Documents',
+                files: [
+                    { name: 'manifesto.txt', icon: 'fa-file-alt', color: 'text-gray-400', type: 'file', content: 'THE XORTRON MANIFESTO\n=====================\n\nInformation wants to be free.\nPrivacy is a right, not a privilege.\nThe network is the battlefield.\n\n- Xortron, 2024' },
+                    { name: 'contacts.enc', icon: 'fa-file', color: 'text-red-400', type: 'file', content: '[ENCRYPTED] contacts.enc\nCipher: ChaCha20-Poly1305\nDecryption key required.\nAttempts remaining: 3' },
+                ]
+            },
+            hacktools: {
+                path: '/root/HackTools',
+                files: [
+                    { name: 'nmap', icon: 'fa-file-code', color: 'text-blue-400', type: 'file', content: 'Nmap 7.94SVN\nUsage: nmap [Scan Type(s)] [Options] {target specification}\nSee nmap --help for usage.' },
+                    { name: 'metasploit', icon: 'fa-file-code', color: 'text-red-400', type: 'file', content: 'Metasploit Framework v6.3\nModules: 2,345 exploits, 1,198 auxiliary\nPayloads: 592 singles, 143 stagers\nmsf6 >' },
+                    { name: 'hydra', icon: 'fa-file-code', color: 'text-green-400', type: 'file', content: 'Hydra v9.5\nPassword cracking tool\nSupported protocols: ssh, ftp, http, smb, rdp, mysql, and 47 more' },
+                ]
+            }
+        };
+
+        function navigateDir(dirKey) {
+            var dir = fileSystem[dirKey];
+            if (!dir) return;
+
+            // Update sidebar active state
+            document.querySelectorAll('.file-sidebar-item').forEach(function(el) { el.classList.remove('active'); });
+            var sidebarItems = document.querySelectorAll('.file-sidebar-item');
+            var dirNames = ['home', 'desktop', 'downloads', 'data', 'network'];
+            var idx = dirNames.indexOf(dirKey);
+            if (idx >= 0 && sidebarItems[idx]) sidebarItems[idx].classList.add('active');
+
+            // Update path displays
+            var pathDisplay = document.getElementById('file-path-display');
+            var currentPath = document.getElementById('file-current-path');
+            if (pathDisplay) pathDisplay.textContent = dir.path;
+            if (currentPath) currentPath.textContent = dir.path;
+
+            // Render files
+            var grid = document.getElementById('file-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            dir.files.forEach(function(file) {
+                var el = document.createElement('div');
+                el.className = 'file text-center cursor-pointer';
+                el.innerHTML = '<div class="text-3xl mb-1"><i class="fas ' + file.icon + ' ' + file.color + '"></i></div>' +
+                    '<div class="text-xs truncate">' + file.name + '</div>';
+
+                if (file.type === 'dir') {
+                    el.ondblclick = function() { navigateDir(file.target); };
+                    el.onclick = function() { showNotification('Double-click to open folder: ' + file.name); };
+                } else {
+                    el.onclick = function() { openFileViewer(file); };
+                }
+                grid.appendChild(el);
+            });
+        }
+
+        function openFileViewer(file) {
+            showNotification('Opening: ' + file.name);
+            // Use a simple alert-style modal in the terminal
+            if (terminalContentEl) {
+                openApp('terminal');
+                var output = document.createElement('div');
+                output.className = 'mb-2 whitespace-pre-wrap';
+                output.textContent = '=== ' + file.name + ' ===\n' + file.content;
+                terminalContentEl.appendChild(output);
+                terminalContentEl.scrollTop = terminalContentEl.scrollHeight;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Network Monitor — live-updating
+        // ---------------------------------------------------------------
+        var networkConnections = [
+            { ip: '192.168.1.1:443', icon: 'fa-server', color: 'text-green-400', status: 'ENCRYPTED', statusColor: 'text-green-400' },
+            { ip: '104.18.25.36:80', icon: 'fa-globe', color: 'text-blue-400', status: 'UNSECURED', statusColor: 'text-yellow-400' },
+            { ip: '74.91.123.45:3306', icon: 'fa-database', color: 'text-purple-400', status: 'VULNERABLE', statusColor: 'text-red-400' },
+            { ip: '10.0.0.5:22', icon: 'fa-server', color: 'text-green-400', status: 'HONEYPOT', statusColor: 'text-yellow-400' },
+            { ip: '172.16.0.1:8080', icon: 'fa-globe', color: 'text-blue-400', status: 'PROXIED', statusColor: 'text-blue-400' },
+        ];
+
+        function refreshNetwork() {
+            // Randomize bandwidth
+            var down = (Math.random() * 8 + 1).toFixed(1);
+            var up = (Math.random() * 3 + 0.5).toFixed(1);
+            var bwEl = document.getElementById('net-bandwidth');
+            var barEl = document.getElementById('net-bar');
+            if (bwEl) bwEl.innerHTML = down + ' MB/s &#x2193; | ' + up + ' MB/s &#x2191;';
+            if (barEl) barEl.style.width = Math.min(95, (parseFloat(down) / 10) * 100) + '%';
+
+            // Randomize connection count
+            var count = 8 + Math.floor(Math.random() * 12);
+            var countEl = document.getElementById('net-conn-count');
+            if (countEl) countEl.textContent = count + ' active connections';
+
+            // Render connections
+            var connEl = document.getElementById('net-connections');
+            if (connEl) {
+                connEl.innerHTML = '';
+                var shuffled = networkConnections.slice().sort(function() { return Math.random() - 0.5; });
+                var showing = shuffled.slice(0, 3 + Math.floor(Math.random() * 3));
+                showing.forEach(function(conn) {
+                    var row = document.createElement('div');
+                    row.className = 'flex justify-between items-center p-2 bg-gray-900 rounded-md';
+                    row.innerHTML = '<div class="flex items-center"><i class="fas ' + conn.icon + ' ' + conn.color + ' mr-2"></i><span>' + conn.ip + '</span></div>' +
+                        '<div class="text-xs ' + conn.statusColor + '">' + conn.status + '</div>';
+                    connEl.appendChild(row);
+                });
+            }
+
+            // Render network map
+            var mapEl = document.getElementById('net-map');
+            if (mapEl) {
+                var myIp = '192.168.1.' + (100 + Math.floor(Math.random() * 55));
+                mapEl.innerHTML =
+                    '<div class="mb-1">&#x2514;&#x2500; [YOU] ' + myIp + '</div>' +
+                    '<div class="ml-4 mb-1">&#x251C;&#x2500; Router 192.168.1.1</div>' +
+                    '<div class="ml-4 mb-1">&#x2502;  &#x251C;&#x2500; Device 192.168.1.102 (Mobile)</div>' +
+                    '<div class="ml-4 mb-1">&#x2502;  &#x2514;&#x2500; Device 192.168.1.103 (Laptop)</div>' +
+                    '<div class="ml-4 mb-1">&#x251C;&#x2500; Honeypot 10.0.0.5 (Ubuntu)</div>' +
+                    '<div class="ml-4">&#x2514;&#x2500; [TOR Exit Node] 74.125.24.102</div>';
+            }
+
+            showNotification('Network refreshed. ' + count + ' connections active.');
+        }
+
+        // Auto-refresh network every 30 seconds
+        setInterval(function() {
+            var netWindow = document.getElementById('network-window');
+            if (netWindow && !netWindow.classList.contains('hidden')) {
+                refreshNetwork();
+            }
+        }, 30000);
+
         // ---------------------------------------------------------------
         // Clock and Date
         // ---------------------------------------------------------------
         function updateClock() {
-            const now = new Date();
-            const clockEl = document.getElementById('clock');
-            const dateEl = document.getElementById('date');
-            const loginTimeEl = document.getElementById('login-time');
+            var now = new Date();
+            var clockEl = document.getElementById('clock');
+            var dateEl = document.getElementById('date');
+            var loginTimeEl = document.getElementById('login-time');
             if (clockEl) clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             if (dateEl) dateEl.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-
             if (loginTimeEl && !loginTimeEl.textContent) {
                 loginTimeEl.textContent = now.toLocaleString();
             }
         }
-
         setInterval(updateClock, 1000);
         updateClock();
 
         // ---------------------------------------------------------------
         // Notification system
         // ---------------------------------------------------------------
-        let notificationTimeout;
+        var notificationTimeout;
 
         function showNotification(message) {
-            const notificationEl = document.getElementById('notification');
-            const messageEl = document.getElementById('notification-message');
-
+            var notificationEl = document.getElementById('notification');
+            var messageEl = document.getElementById('notification-message');
             if (!notificationEl || !messageEl) return;
             messageEl.textContent = message;
             notificationEl.classList.remove('hidden');
-            notificationEl.classList.add('opacity-100');
             clearTimeout(notificationTimeout);
             notificationTimeout = setTimeout(function() {
                 notificationEl.classList.add('hidden');
-                notificationEl.classList.remove('opacity-100');
             }, 5000);
         }
 
         function hideNotification() {
-            const notificationEl = document.getElementById('notification');
-            if (notificationEl) {
-                notificationEl.classList.add('hidden');
-                notificationEl.classList.remove('opacity-100');
-            }
+            var notificationEl = document.getElementById('notification');
+            if (notificationEl) notificationEl.classList.add('hidden');
             clearTimeout(notificationTimeout);
         }
 
-        // Random system notifications
-        const systemMessages = [
+        var systemMessages = [
             'Support The Xortron Criminal Computing Corp @ https://ko-fi.com/xortron',
             'Check out www.xortron.tech',
             'System Integrity Scan: All systems nominal... for now.',
@@ -913,8 +1159,6 @@
             'Your digital footprint is larger than you think. Stay vigilant.',
             'Remember: In cyberspace, no one can hear you scream... unless your mic is on.',
             'In Tyler Durden we trust.',
-            'Cook Meth? Kill your wife? Xortron has a gameplan for you!',
-            'Free PornHub Premium - Thanks Xor!',
         ];
 
         setInterval(function() {
