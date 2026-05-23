@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>1994 Analog DSP // iOS Native</title>
+
+<!-- Tailwind for UI -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Tone.js for advanced Web Audio API DSP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --vhs-bg: #1a1a1a;
+    --vhs-text: #E6D5AC;
+    --vhs-red: #cc0000;
+  }
+
+  body {
+    background-color: var(--vhs-bg);
+    color: var(--vhs-text);
+    font-family: 'Share Tech Mono', monospace;
+    touch-action: manipulation; /* Prevents zooming on double tap on iOS */
+    background-image: url('https://www.transparenttextures.com/patterns/noise-lines.png');
+  }
+
+  /* CRT Scanline Effect */
+  .scanlines {
+    position: fixed; inset: 0; pointer-events: none;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px; z-index: 100;
+  }
+
+  .btn {
+    transition: all 0.1s;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+  }
+  .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col p-6 selection:bg-red-900 selection:text-white">
+
+<div class="scanlines"></div>
+
+<main class="relative z-10 flex-grow flex flex-col max-w-md mx-auto w-full">
+
+  <header class="mb-8 border-b-2 border-red-800 pb-4">
+    <h1 class="text-3xl font-bold tracking-tighter text-red-600 mb-1" style="text-shadow: 2px 0px #00ffff;">ANALOG_DSP.94</h1>
+    <div class="text-[10px] text-gray-500 flex justify-between">
+      <span>HW: iPHONE_15_A16</span>
+      <span>LOC: MORONGO.VALLEY.CA</span>
+    </div>
+  </header>
+
+  <div class="bg-black border border-gray-700 p-4 mb-6 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+    <div class="text-xs text-gray-400 mb-2 uppercase">/// DSP Chain Status</div>
+    <ul class="text-[11px] space-y-1 text-green-700" id="status-list">
+      <li>[WAITING] Awaiting iOS Mic Permission...</li>
+      <li>[WAITING] 90-11k Bandpass Filter...</li>
+      <li>[WAITING] Proximity EQ (+250Hz)...</li>
+      <li>[WAITING] Analog Compander...</li>
+      <li>[WAITING] Wow & Flutter Modulator...</li>
+    </ul>
+  </div>
+
+  <div class="flex-grow flex flex-col justify-center gap-6">
+    <button id="btn-start" class="btn w-full bg-zinc-800 border border-zinc-600 text-white py-4 rounded text-xl font-bold uppercase tracking-widest">
+      INITIATE LIVE MIC
+    </button>
+
+    <div class="grid grid-cols-2 gap-4">
+      <button id="btn-record" disabled class="btn bg-gray-800 border border-gray-600 text-gray-500 py-3 rounded font-bold uppercase opacity-50 cursor-not-allowed">
+        [REC] RECORD
+      </button>
+      <button id="btn-stop" disabled class="btn bg-gray-800 border border-gray-600 text-gray-500 py-3 rounded font-bold uppercase opacity-50 cursor-not-allowed">
+        STOP
+      </button>
+    </div>
+  </div>
+
+  <div id="recording-alert" class="hidden mt-6 text-center text-xs text-red-500 animate-pulse border border-red-900 bg-red-900/20 p-2 rounded">
+    ● RECORDING TO BUFFER...
+  </div>
+
+  <audio id="playback" controls class="w-full mt-6 hidden border border-gray-700 rounded bg-zinc-900"></audio>
+
+</main>
+
+<script>
+  // UI Elements
+  const btnStart = document.getElementById('btn-start');
+  const btnRecord = document.getElementById('btn-record');
+  const btnStop = document.getElementById('btn-stop');
+  const statusList = document.getElementById('status-list');
+  const recordingAlert = document.getElementById('recording-alert');
+  const playback = document.getElementById('playback');
+
+  // Audio Context & Nodes
+  let mic, pitchShift, highpass, lowpass, eq250, eq3500, eq8500, comp, dist, flutter, reverb;
+  let isLive = false;
+  let recorder;
+  let recorderMime = '';
+  let chunks = [];
+
+  // Update Status UI
+  function updateStatus(active) {
+    const color = active ? 'text-green-500' : 'text-green-900';
+    statusList.innerHTML = `
+      <li class="${color}">[${active ? 'ACTIVE' : 'WAITING'}] iOS CoreAudio Mic Captured</li>
+      <li class="${color}">[${active ? 'ACTIVE' : 'WAITING'}] Tape Bandpass (90Hz - 11kHz)</li>
+      <li class="${color}">[${active ? 'ACTIVE' : 'WAITING'}] Proximity & Air EQ (+250Hz, +8.5kHz)</li>
+      <li class="${color}">[${active ? 'ACTIVE' : 'WAITING'}] Magnetic Tape Saturation / Overdrive</li>
+      <li class="${color}">[${active ? 'ACTIVE' : 'WAITING'}] Mechanical Wow & Flutter (0.25Hz)</li>
+    `;
+  }
+
+  async function initDSP() {
+    // iOS requires AudioContext to be started by a user gesture
+    await Tone.start();
+
+    if (!mic) {
+      mic = new Tone.UserMedia();
+
+      // 1. Pitch / Formant Shift (Simulating SoX 'pitch 180' = 180 cents = 1.8 semitones)
+      pitchShift = new Tone.PitchShift({ pitch: 1.8 });
+
+      // 2. VHS/Analog Bandwidth cutoff
+      highpass = new Tone.Filter(90, "highpass", -24);
+      lowpass = new Tone.Filter(11000, "lowpass", -24);
+
+      // 3. Proximity Effect & Sibilance Air
+      eq250 = new Tone.Filter(250, "peaking"); eq250.gain.value = 2; eq250.Q.value = 1.2;
+      eq3500 = new Tone.Filter(3500, "peaking"); eq3500.gain.value = 4; eq3500.Q.value = 1.5;
+      eq8500 = new Tone.Filter(8500, "peaking"); eq8500.gain.value = 3; eq8500.Q.value = 1.0;
+
+      // 4. Aggressive Companding & Saturation (Overdrive)
+      comp = new Tone.Compressor({ threshold: -40, ratio: 8, attack: 0.05, release: 0.3 });
+      dist = new Tone.Distortion(0.3); // Saturation
+
+      // 5. Wow, Flutter & Studio Space
+      flutter = new Tone.Vibrato({ frequency: 0.25, depth: 0.05 });
+      reverb = new Tone.Reverb({ decay: 0.5, preDelay: 0.01 });
+
+      // Reverb needs to generate its impulse response asynchronously before use
+      await reverb.ready;
+
+      // Connect the exact SoX pipeline
+      mic.chain(
+        eq250, eq3500, eq8500,  // EQs first
+        highpass, lowpass,      // Bandwidth limit
+        comp, dist,             // Dynamic crush & saturate
+        flutter,                // Tape mechanism wobble
+        pitchShift,             // Pitch modification
+        reverb,                 // Studio booth
+        Tone.Destination        // Output to speakers/headphones
+      );
+
+      // Set up recorder once (re-creating it on every mic open would
+      // duplicate the Tone.Destination connection and leak recorders).
+      setupRecorder();
+    }
+
+    try {
+      await mic.open();
+      isLive = true;
+      btnStart.textContent = "MUTE LIVE MIC";
+      btnStart.classList.replace('bg-zinc-800', 'bg-red-800');
+      btnStart.classList.replace('border-zinc-600', 'border-red-600');
+      updateStatus(true);
+
+      // Enable Recording
+      btnRecord.disabled = false;
+      btnRecord.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-800', 'text-gray-500');
+      btnRecord.classList.add('bg-zinc-800', 'text-white', 'hover:bg-zinc-700');
+    } catch (e) {
+      alert("Microphone access denied. Please allow microphone access in Safari settings.");
+    }
+  }
+
+  function setupRecorder() {
+    // Capture the output of the Tone Destination (the end of our DSP chain)
+    const dest = Tone.context.createMediaStreamDestination();
+    Tone.Destination.connect(dest);
+
+    // Pick a MIME type the current browser actually supports.
+    // iOS Safari ships audio/mp4 (AAC); Chrome/Firefox ship audio/webm (Opus).
+    const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+    const options = {};
+    for (const type of candidates) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
+        options.mimeType = type;
+        break;
+      }
+    }
+
+    recorder = new MediaRecorder(dest.stream, options);
+    recorderMime = recorder.mimeType || options.mimeType || 'audio/webm';
+
+    recorder.ondataavailable = evt => {
+      if (evt.data && evt.data.size > 0) chunks.push(evt.data);
+    };
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: recorderMime });
+      playback.src = URL.createObjectURL(blob);
+      playback.classList.remove('hidden');
+      chunks = [];
+    };
+  }
+
+  function resetStopButton() {
+    btnStop.disabled = true;
+    btnStop.classList.add('opacity-50', 'cursor-not-allowed');
+    btnStop.classList.remove('text-red-500', 'bg-zinc-800');
+  }
+
+  function resetRecordButton(disable) {
+    if (disable) {
+      btnRecord.disabled = true;
+      btnRecord.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-800', 'text-gray-500');
+      btnRecord.classList.remove('bg-zinc-800', 'text-white', 'hover:bg-zinc-700');
+    } else {
+      btnRecord.disabled = false;
+      btnRecord.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  // --- Event Listeners ---
+
+  btnStart.addEventListener('click', async () => {
+    if (!isLive) {
+      await initDSP();
+    } else {
+      // Stop any in-progress recording cleanly before muting.
+      if (recorder && recorder.state === 'recording') {
+        recorder.stop();
+        recordingAlert.classList.add('hidden');
+      }
+      mic.close();
+      isLive = false;
+      btnStart.textContent = "INITIATE LIVE MIC";
+      btnStart.classList.replace('bg-red-800', 'bg-zinc-800');
+      btnStart.classList.replace('border-red-600', 'border-zinc-600');
+      updateStatus(false);
+      resetRecordButton(true);
+      resetStopButton();
+    }
+  });
+
+  btnRecord.addEventListener('click', () => {
+    if (recorder && recorder.state === 'inactive') {
+      recorder.start();
+      playback.classList.add('hidden'); // hide previous recording
+      recordingAlert.classList.remove('hidden');
+
+      // Toggle buttons
+      btnRecord.disabled = true;
+      btnRecord.classList.add('opacity-50', 'cursor-not-allowed');
+      btnStop.disabled = false;
+      btnStop.classList.remove('opacity-50', 'cursor-not-allowed');
+      btnStop.classList.add('text-red-500', 'bg-zinc-800');
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
+      recordingAlert.classList.add('hidden');
+
+      // Toggle buttons
+      resetStopButton();
+      btnRecord.disabled = false;
+      btnRecord.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  });
+
+</script>
+</body>
+</html>
