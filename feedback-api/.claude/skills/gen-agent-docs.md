@@ -36,9 +36,9 @@ Read `lib/db.ts`. Extract every exported `interface` or `type`. These become the
 
 ### Step 3 — Infer base URL
 
-Check for `process.env.NEXT_PUBLIC_BASE_URL` in `lib/db.ts` or `app/llms-full.txt/route.ts`.
+Check for `process.env.NEXT_PUBLIC_BASE_URL` in `app/llms-full.txt/route.ts`.
 Check `.env.local` or `.env.local.example` for a default. If none found, use
-`https://your-app.vercel.app` as a placeholder and note it as a TODO.
+`http://localhost:3000` as the default.
 
 ### Step 4 — Quality checklist (evaluate before writing)
 

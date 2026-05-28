@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "https://feedback-api.vercel.app";
+const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
 const DOCS = `# Feedback API — Full Reference
 

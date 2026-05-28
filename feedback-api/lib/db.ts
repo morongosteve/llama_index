@@ -31,17 +31,9 @@ export interface FeedbackFilters {
   offset?: number;
 }
 
-const SEED_PATH = path.join(process.cwd(), "data", "feedback.json");
-// Vercel serverless functions have a read-only filesystem except /tmp.
-// On Vercel we copy the seed data into /tmp once and use that as our store.
-const DB_PATH = process.env.VERCEL
-  ? "/tmp/feedback.json"
-  : SEED_PATH;
+const DB_PATH = path.join(process.cwd(), "data", "feedback.json");
 
 function readAll(): Feedback[] {
-  if (process.env.VERCEL && !fs.existsSync(DB_PATH)) {
-    fs.copyFileSync(SEED_PATH, DB_PATH);
-  }
   const raw = fs.readFileSync(DB_PATH, "utf-8");
   return JSON.parse(raw) as Feedback[];
 }
