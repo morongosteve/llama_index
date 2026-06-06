@@ -16,6 +16,8 @@ Usage:
     python image_to_video_pipeline.py --validate-only        # manifest, no API calls
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import base64
@@ -54,6 +56,12 @@ MAX_INTERVAL    = 30.0
 MAX_POLLS       = 90
 JITTER_RANGE    = 1.0
 
+# Transient-HTTP retry config (per request, distinct from job polling)
+RETRY_STATUSES  = {429, 500, 502, 503, 504}
+MAX_RETRIES     = 4
+RETRY_BASE      = 1.0
+RETRY_MAX       = 20.0
+
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type":  "application/json",
@@ -65,6 +73,52 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 log = logging.getLogger("i2v_pipeline")
+
+
+# ─── Transient-HTTP retry helper ──────────────────────────────────────────────
+
+def _retry_delay(attempt: int, retry_after: str | None) -> float:
+    """Honor a server Retry-After header if present, else exponential backoff + jitter."""
+    if retry_after:
+        try:
+            return float(retry_after)
+        except (TypeError, ValueError):
+            pass  # non-numeric (HTTP-date) — fall through to backoff
+    return min(RETRY_MAX, RETRY_BASE * (2 ** attempt)) + random.uniform(0, JITTER_RANGE)
+
+
+async def request_json(
+    session: aiohttp.ClientSession,
+    method:  str,
+    url:     str,
+    **kwargs,
+) -> tuple[int, dict]:
+    """
+    Issue an HTTP request, retrying on transient statuses (429/5xx) with
+    Retry-After-aware backoff. Returns (status, json_body). Non-transient
+    statuses (including 4xx other than 429) are returned to the caller to handle.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            async with session.request(method, url, headers=HEADERS, **kwargs) as resp:
+                status = resp.status
+                if status in RETRY_STATUSES and attempt < MAX_RETRIES - 1:
+                    delay = _retry_delay(attempt, resp.headers.get("Retry-After"))
+                    log.warning(f"  ⟳ {method} {url} → {status}, retry {attempt + 1}/{MAX_RETRIES} in {delay:.1f}s")
+                    await asyncio.sleep(delay)
+                    continue
+                return status, await resp.json()
+        except aiohttp.ClientError as exc:
+            last_exc = exc
+            if attempt < MAX_RETRIES - 1:
+                delay = _retry_delay(attempt, None)
+                log.warning(f"  ⟳ {method} {url} errored ({exc}), retry {attempt + 1}/{MAX_RETRIES} in {delay:.1f}s")
+                await asyncio.sleep(delay)
+                continue
+            raise
+    # Exhausted retries on transient statuses (loop fell through without returning)
+    raise RuntimeError(f"{method} {url} failed after {MAX_RETRIES} attempts (last_exc={last_exc})")
 
 
 # ─── Stage 1: Multi-Stage Asset Validation ────────────────────────────────────
@@ -202,8 +256,7 @@ async def poll_with_backoff(session: aiohttp.ClientSession, task_id: str) -> dic
     url = STATUS_URL.format(task_id=task_id)
 
     for attempt in range(MAX_POLLS):
-        async with session.get(url, headers=HEADERS) as resp:
-            data = await resp.json()
+        _, data = await request_json(session, "GET", url)
 
         status = data.get("data", {}).get("task_status")
 
@@ -248,11 +301,10 @@ async def submit_job(
         "aspect_ratio":     job_config.get("aspect_ratio", "9:16"),
     }
 
-    async with session.post(SUBMIT_URL, json=payload, headers=HEADERS) as resp:
-        data = await resp.json()
-        if resp.status >= 400:
-            raise RuntimeError(f"Submit error {resp.status}: {data}")
-        return data["data"]["task_id"]
+    status, data = await request_json(session, "POST", SUBMIT_URL, json=payload)
+    if status >= 400:
+        raise RuntimeError(f"Submit error {status}: {data}")
+    return data["data"]["task_id"]
 
 
 # ─── Stage 4: Resumable Batch Processor ──────────────────────────────────────
