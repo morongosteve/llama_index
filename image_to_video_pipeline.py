@@ -245,6 +245,25 @@ def build_manifest(input_dir: Path) -> tuple[list[dict], list[dict]]:
     return manifests, errors
 
 
+# ─── Provider selection ───────────────────────────────────────────────────────
+
+# Active backend; overridable via --provider. Provider-specific endpoints,
+# payloads, response parsing, and pricing live in video_providers.py.
+ACTIVE_PROVIDER_NAME = "kling"
+
+
+def _provider():
+    """Resolve the active VideoProvider (lazy import avoids a circular import)."""
+    from video_providers import get_provider
+
+    return get_provider(ACTIVE_PROVIDER_NAME)
+
+
+def estimate_batch_cost(manifests: list, job_cfg: dict) -> dict:
+    """Estimate the cost of a batch with the active provider (no API calls)."""
+    return _provider().estimate_cost(job_cfg, len(manifests)).to_dict()
+
+
 # ─── Stage 2: Exponential-Backoff Polling ─────────────────────────────────────
 
 async def poll_with_backoff(session: aiohttp.ClientSession, task_id: str) -> dict:
@@ -252,25 +271,26 @@ async def poll_with_backoff(session: aiohttp.ClientSession, task_id: str) -> dic
     Async polling with exponential backoff + jitter.
     Prevents thundering-herd rate-limit penalties at scale.
     Transitions: submitted → processing → succeed | failed | timeout
+
+    Provider-agnostic: status URL and response parsing come from the provider.
     """
-    url = STATUS_URL.format(task_id=task_id)
+    provider = _provider()
+    url = provider.status_url(task_id)
 
     for attempt in range(MAX_POLLS):
         _, data = await request_json(session, "GET", url)
 
-        status = data.get("data", {}).get("task_status")
+        result = provider.parse_status(data)
 
-        if status == "succeed":
-            videos = data["data"]["task_result"]["videos"]
-            return {"status": "succeed", "video_url": videos[0]["url"], "raw": data}
+        if result.state == "succeed":
+            return {"status": "succeed", "video_url": result.video_url, "raw": data}
 
-        if status == "failed":
-            msg = data["data"].get("task_status_msg", "unspecified failure")
-            raise RuntimeError(f"Generation failed [{task_id}]: {msg}")
+        if result.state == "failed":
+            raise RuntimeError(f"Generation failed [{task_id}]: {result.message}")
 
         # Exponential backoff with randomized jitter — avoids synchronized retry storms
         sleep = min(MAX_INTERVAL, BASE_INTERVAL * (1.5 ** attempt)) + random.uniform(0, JITTER_RANGE)
-        log.debug(f"  [{task_id}] attempt {attempt + 1}, status={status}, sleeping {sleep:.1f}s")
+        log.debug(f"  [{task_id}] attempt {attempt + 1}, state={result.state}, sleeping {sleep:.1f}s")
         await asyncio.sleep(sleep)
 
     raise TimeoutError(f"Task {task_id} timed out after {MAX_POLLS} polls.")
@@ -283,28 +303,11 @@ async def submit_job(
     manifest_record: dict,
     job_config: dict,
 ) -> str:
-    """Submit one image2video job. Returns task_id."""
-    payload = {
-        "model_name":       "kling-v3",
-        "image":            manifest_record["base64"],  # raw base64, no prefix
-        "prompt":           job_config.get(
-            "prompt",
-            "subtle expression shift, camera slowly pushes in, face fully in frame",
-        ),
-        "negative_prompt":  job_config.get(
-            "negative_prompt",
-            "blur, distortion, face morph, identity drift, anatomical distortion",
-        ),
-        "cfg_scale":        job_config.get("cfg_scale", 0.5),   # low = image-faithful
-        "mode":             job_config.get("mode", "pro"),
-        "duration":         job_config.get("duration", 10),
-        "aspect_ratio":     job_config.get("aspect_ratio", "9:16"),
-    }
-
-    status, data = await request_json(session, "POST", SUBMIT_URL, json=payload)
-    if status >= 400:
-        raise RuntimeError(f"Submit error {status}: {data}")
-    return data["data"]["task_id"]
+    """Submit one image2video job via the active provider. Returns task_id."""
+    provider = _provider()
+    url, payload = provider.build_submit_request(manifest_record, job_config)
+    status, data = await request_json(session, "POST", url, json=payload)
+    return provider.parse_submit_response(status, data)
 
 
 # ─── Stage 4: Resumable Batch Processor ──────────────────────────────────────
@@ -418,7 +421,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--duration", type=int, default=None, help="Clip duration in seconds")
     p.add_argument("--aspect-ratio", type=str, default=None, help='e.g. "9:16", "16:9", "1:1"')
     p.add_argument("--concurrency", type=int, default=None, help="Max concurrent jobs")
+    p.add_argument("--provider", type=str, default=ACTIVE_PROVIDER_NAME,
+                   help="Video provider backend (e.g. kling, goenhance)")
     p.add_argument("--validate-only", action="store_true", help="Build manifest, skip API calls")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Validate + print a cost estimate, then exit (no API calls)")
     return p.parse_args()
 
 
@@ -441,13 +448,21 @@ def build_job_config(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    global INPUT_DIR, OUTPUT_DIR, MAX_CONCURRENCY
+    global INPUT_DIR, OUTPUT_DIR, MAX_CONCURRENCY, ACTIVE_PROVIDER_NAME
 
     args = parse_args()
     INPUT_DIR = args.input
     OUTPUT_DIR = args.output
+    ACTIVE_PROVIDER_NAME = args.provider
     if args.concurrency is not None:
         MAX_CONCURRENCY = args.concurrency
+
+    # Fail fast on an unknown provider before doing any work.
+    try:
+        _provider()
+    except ValueError as exc:
+        log.error(str(exc))
+        raise SystemExit(1) from exc
 
     if not INPUT_DIR.is_dir():
         log.error(f"Input directory not found: {INPUT_DIR}")
@@ -464,13 +479,24 @@ def main() -> None:
         log.error("No valid images to process. See image_errors.json.")
         raise SystemExit(1)
 
+    job_cfg = build_job_config(args)
+
+    if args.dry_run:
+        est = estimate_batch_cost(manifests, job_cfg)
+        log.info(
+            f"Dry run [{est['provider']}]: {est['num_clips']} clips × "
+            f"{est['seconds_each']}s ≈ {est['currency']} {est['total']} "
+            f"({est['currency']} {est['per_clip']}/clip; {est['note']})"
+        )
+        print(json.dumps(est, indent=2))
+        return
+
     if API_KEY in ("", "YOUR_API_KEY"):
         log.error("KLING_API_KEY is not set. Export it before running real jobs.")
         raise SystemExit(1)
 
-    job_cfg = build_job_config(args)
-
-    log.info(f"Stage 2–4 — submitting {len(manifests)} jobs (concurrency={MAX_CONCURRENCY})")
+    log.info(f"Stage 2–4 — submitting {len(manifests)} jobs via "
+             f"{ACTIVE_PROVIDER_NAME} (concurrency={MAX_CONCURRENCY})")
     results = asyncio.run(run_batch(manifests, job_cfg))
 
     succeeded = [r for r in results if r["status"] == "succeed"]

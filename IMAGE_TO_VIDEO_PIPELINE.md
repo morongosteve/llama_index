@@ -47,7 +47,30 @@ python image_to_video_pipeline.py --validate-only
 | `--duration` | Clip duration in seconds |
 | `--aspect-ratio` | e.g. `9:16`, `16:9`, `1:1` |
 | `--concurrency` | Max concurrent jobs |
+| `--provider` | Backend: `kling` (default) or `goenhance` |
 | `--validate-only` | Build manifest, skip API calls |
+| `--dry-run` | Validate + print a cost estimate, then exit (no API calls) |
+
+## Providers & cost estimation
+
+Backends are pluggable via the `VideoProvider` interface in `video_providers.py`.
+Each provider is a small declarative adapter (endpoints, request payload,
+response parsing, pricing); the pipeline owns the generic retry / polling /
+concurrency machinery. Built-in: **Kling V3** and **GoEnhance**. Add a new one
+by subclassing `VideoProvider` and registering it in `PROVIDERS`.
+
+```bash
+# Estimate spend before committing to a batch
+python image_to_video_pipeline.py --input inputs --dry-run --duration 10 --mode pro
+# → Dry run [kling]: 3 clips × 10.0s ≈ USD 1.47 (USD 0.49/clip; ...)
+
+# Switch backends
+python image_to_video_pipeline.py --input inputs --provider goenhance
+```
+
+> Pricing constants in each provider are **approximate** and should be verified
+> against the backend's current pricing. The GoEnhance endpoint paths/schema are
+> isolated in `GoEnhanceProvider` and should be confirmed against its live API.
 
 ## Output files
 
