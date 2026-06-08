@@ -93,6 +93,33 @@ class Ollama(FunctionCallingLLM):
         print(response)
         ```
 
+        Multimodal models (e.g. ``gemma4:12b``) accept image inputs by
+        combining an ``ImageBlock`` with a ``TextBlock`` in a chat message:
+
+        ```python
+        from llama_index.core.llms import ChatMessage
+        from llama_index.core.base.llms.types import ImageBlock, TextBlock
+        from llama_index.llms.ollama import Ollama
+
+        llm = Ollama(model="gemma4:12b", request_timeout=120.0)
+
+        with open("image.png", "rb") as f:
+            image_data = f.read()
+
+        response = llm.chat(
+            [
+                ChatMessage(
+                    role="user",
+                    blocks=[
+                        ImageBlock(image=image_data),
+                        TextBlock(text="What is in this image?"),
+                    ],
+                )
+            ]
+        )
+        print(response)
+        ```
+
     """
 
     base_url: str = Field(
