@@ -128,6 +128,33 @@ response = await sllm.achat(
 print(response.message.content)
 ```
 
+### Multimodal (Vision) Usage
+
+Ollama supports multimodal models (such as `gemma4:12b`) that process both text and images. Combine an `ImageBlock` with a `TextBlock` in your chat message:
+
+```python
+from llama_index.core.llms import ChatMessage
+from llama_index.core.base.llms.types import ImageBlock, TextBlock
+
+llm = Ollama(model="gemma4:12b", request_timeout=120.0)
+
+with open("image.png", "rb") as f:
+    image_data = f.read()
+
+response = llm.chat(
+    [
+        ChatMessage(
+            role="user",
+            blocks=[
+                ImageBlock(image=image_data),
+                TextBlock(text="What do you see in this image?"),
+            ],
+        )
+    ]
+)
+print(response)
+```
+
 ### LLM Implementation example
 
 https://docs.llamaindex.ai/en/stable/examples/llm/ollama/

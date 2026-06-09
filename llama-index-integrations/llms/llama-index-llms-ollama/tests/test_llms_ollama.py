@@ -1,10 +1,16 @@
+import base64
 import os
 
 import pytest
 from ollama import Client
 from typing import Annotated
 
-from llama_index.core.base.llms.types import ThinkingBlock, TextBlock, ToolCallBlock
+from llama_index.core.base.llms.types import (
+    ImageBlock,
+    ThinkingBlock,
+    TextBlock,
+    ToolCallBlock,
+)
 from llama_index.core.base.llms.base import BaseLLM
 from llama_index.core.bridge.pydantic import BaseModel, Field
 from llama_index.core.llms import ChatMessage
@@ -13,6 +19,7 @@ from llama_index.llms.ollama import Ollama
 
 test_model = os.environ.get("OLLAMA_TEST_MODEL", "llama3.1:latest")
 thinking_test_model = os.environ.get("OLLAMA_THINKING_TEST_MODEL", "qwen3:0.6b")
+multimodal_test_model = os.environ.get("OLLAMA_MULTIMODAL_TEST_MODEL", "gemma4:12b")
 
 try:
     client = Client()
@@ -28,6 +35,24 @@ try:
         client = None  # type: ignore
 except Exception:
     client = None  # type: ignore
+
+# Separate availability check for the multimodal (vision) model so that the
+# multimodal tests can run independently of the default text test model.
+multimodal_client = None
+try:
+    _mm_client = Client()
+    _mm_models = _mm_client.list()
+    for _mm_model in _mm_models["models"]:
+        if _mm_model.model == multimodal_test_model:
+            multimodal_client = _mm_client
+            break
+except Exception:
+    multimodal_client = None
+
+# Minimal 1x1 RGBA PNG (70 bytes) used as a lightweight image input for tests.
+_MINIMAL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
+)
 
 
 class Song(BaseModel):
@@ -436,3 +461,46 @@ async def test_chat_methods_with_tool_input() -> None:
         ablocks.extend(r.message.blocks)
     assert len([block for block in ablocks if isinstance(block, TextBlock)]) > 0
     assert len([block for block in ablocks if isinstance(block, ToolCallBlock)]) == 0
+
+
+@pytest.mark.skipif(
+    multimodal_client is None,
+    reason="Ollama client is not available or multimodal test model is missing",
+)
+def test_ollama_multimodal_chat() -> None:
+    llm = Ollama(model=multimodal_test_model, request_timeout=120.0)
+    response = llm.chat(
+        [
+            ChatMessage(
+                role="user",
+                blocks=[
+                    ImageBlock(image=_MINIMAL_PNG),
+                    TextBlock(text="What do you see in this image?"),
+                ],
+            )
+        ]
+    )
+    assert response is not None
+    assert str(response).strip() != ""
+
+
+@pytest.mark.skipif(
+    multimodal_client is None,
+    reason="Ollama client is not available or multimodal test model is missing",
+)
+@pytest.mark.asyncio
+async def test_ollama_async_multimodal_chat() -> None:
+    llm = Ollama(model=multimodal_test_model, request_timeout=120.0)
+    response = await llm.achat(
+        [
+            ChatMessage(
+                role="user",
+                blocks=[
+                    ImageBlock(image=_MINIMAL_PNG),
+                    TextBlock(text="What do you see in this image?"),
+                ],
+            )
+        ]
+    )
+    assert response is not None
+    assert str(response).strip() != ""
