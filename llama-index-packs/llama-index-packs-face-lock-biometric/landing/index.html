@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Lock — Biometric Character Consistency for AI Artists</title>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Reset & base                                                        */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --accent-hover: #79c0ff;
+      --green:     #3fb950;
+      --purple:    #bc8cff;
+      --radius:    12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+
+    /* ------------------------------------------------------------------ */
+    /* Layout helpers                                                       */
+    /* ------------------------------------------------------------------ */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    section {
+      padding: 80px 0;
+    }
+
+    section:nth-child(even) {
+      background: var(--surface);
+    }
+
+    h2 {
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Nav                                                                  */
+    /* ------------------------------------------------------------------ */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(14, 17, 23, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    nav .logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 28px;
+    }
+
+    nav ul a {
+      color: var(--muted);
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    nav ul a:hover { color: var(--text); }
+
+    /* ------------------------------------------------------------------ */
+    /* Hero                                                                 */
+    /* ------------------------------------------------------------------ */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding-top: 60px;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(88,166,255,0.08) 0%, transparent 100%),
+        var(--bg);
+    }
+
+    .hero h1 {
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero .tagline {
+      font-size: 1.25rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 36px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* How It Works                                                         */
+    /* ------------------------------------------------------------------ */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 32px;
+    }
+
+    .step {
+      text-align: center;
+      padding: 32px 24px;
+    }
+
+    .step .icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .step h3 {
+      font-size: 1.15rem;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .step-number {
+      display: inline-block;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Features grid                                                        */
+    /* ------------------------------------------------------------------ */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: border-color 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent);
+    }
+
+    .feature-card .icon {
+      font-size: 1.6rem;
+      margin-bottom: 12px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Pricing                                                              */
+    /* ------------------------------------------------------------------ */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 32px;
+      max-width: 740px;
+      margin: 0 auto;
+    }
+
+    .pricing-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pricing-card.highlight {
+      border-color: var(--accent);
+      position: relative;
+    }
+
+    .pricing-card.highlight::before {
+      content: "Popular";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pricing-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
+
+    .pricing-card .price {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .pricing-card .price-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .pricing-card ul {
+      list-style: none;
+      flex: 1;
+      margin-bottom: 28px;
+    }
+
+    .pricing-card li {
+      padding: 6px 0;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .pricing-card li::before {
+      content: "\2713 ";
+      color: var(--green);
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    .pricing-card .btn {
+      text-align: center;
+      width: 100%;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* FAQ                                                                  */
+    /* ------------------------------------------------------------------ */
+    .faq-list {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .faq-question {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-align: left;
+      padding: 20px 0;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .faq-question:hover { color: var(--accent); }
+
+    .faq-question .chevron {
+      transition: transform 0.25s;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .faq-item.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .faq-item.open .faq-answer {
+      max-height: 300px;
+      padding-bottom: 20px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Footer                                                               */
+    /* ------------------------------------------------------------------ */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    footer .links {
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    footer .links a { color: var(--muted); }
+    footer .links a:hover { color: var(--text); }
+
+    /* ------------------------------------------------------------------ */
+    /* Responsive tweaks                                                    */
+    /* ------------------------------------------------------------------ */
+    @media (max-width: 640px) {
+      section { padding: 56px 0; }
+      h2 { font-size: 1.6rem; margin-bottom: 32px; }
+      nav ul { gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ====== Nav ====== -->
+  <nav>
+    <div class="container">
+      <div class="logo">Face Lock</div>
+      <ul>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ====== Hero ====== -->
+  <section class="hero" id="hero">
+    <div class="container">
+      <h1><span>Face Lock</span></h1>
+      <p class="tagline">Biometric character consistency for AI artists</p>
+      <div class="hero-buttons">
+        <a class="btn btn-primary" href="https://t.me/YOUR_BOT" target="_blank" rel="noopener">Open in Telegram</a>
+        <a class="btn btn-outline" href="#how-it-works">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== How It Works ====== -->
+  <section id="how-it-works">
+    <div class="container">
+      <h2>How It Works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="icon">&#128247;</div>
+          <h3>Send a Photo</h3>
+          <p>Drop a reference photo of any face into the Telegram bot. Frontal shots work best.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="icon">&#128208;</div>
+          <h3>Get Biometric Measurements</h3>
+          <p>The bot extracts 11 precise facial geometry measurements and returns a structured profile.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="icon">&#128203;</div>
+          <h3>Copy Prompt Codes</h3>
+          <p>Paste the generated prompt codes into Flux, Midjourney, or Reve to lock the character across images.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== Features ====== -->
+  <section id="features">
+    <div class="container">
+      <h2>Features</h2>
+      <div class="features">
+        <div class="feature-card">
+          <div class="icon">&#128207;</div>
+          <h3>Biometric Extraction</h3>
+          <p>11 facial measurements covering proportions, symmetry, and landmark distances for precise geometry.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128274;</div>
+          <h3>Anti-Drift Prompts</h3>
+          <p>Auto-generated prompt fragments that pin facial features and prevent character drift across generations.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#127912;</div>
+          <h3>Platform Support</h3>
+          <p>Native output formats for Flux, Midjourney, and Reve so codes slot straight into your workflow.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128200;</div>
+          <h3>Drift Detection</h3>
+          <p>Compare a new generation against the stored biometric profile and get a similarity score in seconds.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#127902;</div>
+          <h3>Film Emulation</h3>
+          <p>Apply analog film stock presets (Portra 400, Tri-X, Ektar) to your prompt codes for stylistic consistency.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128737;</div>
+          <h3>BIPA Compliance</h3>
+          <p>All biometric data is processed transiently. No facial data is stored on our servers after extraction.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== Pricing ====== -->
+  <section id="pricing">
+    <div class="container">
+      <h2>Pricing</h2>
+      <div class="pricing-grid">
+        <!-- Free tier -->
+        <div class="pricing-card">
+          <h3>Free</h3>
+          <div class="price">$0</div>
+          <div class="price-sub">Forever free</div>
+          <ul>
+            <li>5 scans per day</li>
+            <li>Basic facial geometry</li>
+            <li>Single platform output</li>
+          </ul>
+          <a class="btn btn-outline" href="https://t.me/YOUR_BOT" target="_blank" rel="noopener">Get Started</a>
+        </div>
+        <!-- Pro tier -->
+        <div class="pricing-card highlight">
+          <h3>Pro</h3>
+          <div class="price">$9<span style="font-size:1rem;font-weight:400;color:var(--muted)">/mo</span></div>
+          <div class="price-sub">Cancel anytime</div>
+          <ul>
+            <li>Unlimited scans</li>
+            <li>All platform codes (Flux, Midjourney, Reve)</li>
+            <li>Full prompt code output</li>
+            <li>Drift detection</li>
+            <li>Film emulation presets</li>
+          </ul>
+          <a class="btn btn-primary" href="https://t.me/YOUR_BOT" target="_blank" rel="noopener">Upgrade to Pro</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== FAQ ====== -->
+  <section id="faq">
+    <div class="container">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-list">
+
+        <div class="faq-item">
+          <button class="faq-question">
+            What kind of photos work best?
+            <span class="chevron">&#9660;</span>
+          </button>
+          <div class="faq-answer">
+            Frontal face photos with even lighting give the most accurate biometric extraction.
+            The face should be clearly visible without heavy occlusion (sunglasses, masks).
+            High-resolution photos (1024px+) are recommended but not required.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            Is my biometric data stored?
+            <span class="chevron">&#9660;</span>
+          </button>
+          <div class="faq-answer">
+            No. Face Lock processes images transiently in memory. Once the 11 measurements are
+            extracted and returned to you, the original image and raw biometric vectors are
+            discarded. We never store facial imagery or biometric identifiers on our servers,
+            keeping us compliant with BIPA and similar regulations.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            Which AI platforms are supported?
+            <span class="chevron">&#9660;</span>
+          </button>
+          <div class="faq-answer">
+            Face Lock currently generates prompt codes for Flux, Midjourney, and Reve.
+            Each output format is tuned to that platform's prompt syntax so you can paste
+            directly into your workflow. Additional platform support is on the roadmap.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            Can I cancel my Pro subscription?
+            <span class="chevron">&#9660;</span>
+          </button>
+          <div class="faq-answer">
+            Yes. You can cancel at any time directly through the Telegram bot or via the
+            Stripe customer portal. Your Pro features remain active until the end of the
+            current billing cycle.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== Footer ====== -->
+  <footer>
+    <div class="container">
+      <div class="links">
+        <a href="https://t.me/YOUR_BOT" target="_blank" rel="noopener">Telegram Bot</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a href="mailto:support@facelock.ai">Contact</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+      <p>&copy; 2026 Face Lock. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ====== Minimal JS: FAQ toggle ====== -->
+  <script>
+    document.querySelectorAll(".faq-question").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var item = btn.parentElement;
+        var isOpen = item.classList.contains("open");
+        // Close all
+        document.querySelectorAll(".faq-item").forEach(function (el) {
+          el.classList.remove("open");
+        });
+        // Toggle current
+        if (!isOpen) {
+          item.classList.add("open");
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>

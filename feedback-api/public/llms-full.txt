@@ -1,0 +1,151 @@
+# Feedback API — Full Documentation
+
+## Overview
+
+The Feedback API is a RESTful service for collecting, managing, and analyzing user feedback. Built with Next.js App Router and backed by SQLite.
+
+## Base URL
+
+    http://localhost:3000/api
+
+## Authentication
+
+Write operations (POST, PATCH, DELETE) require a valid API key passed as a Bearer token.
+
+    Authorization: Bearer <your-api-key>
+
+**Configuration:** Set the `API_KEYS` environment variable with a comma-separated list of valid keys:
+
+    API_KEYS=key1,key2,key3
+
+**Development mode:** If `API_KEYS` is not set, all requests are allowed without authentication.
+
+**Read operations (GET)** are public and do not require authentication.
+
+**Error response** (401):
+
+    {
+      "error": "Invalid or missing API key"
+    }
+
+## Endpoints
+
+### GET /api/feedback
+
+List feedback entries with filtering, sorting, and pagination.
+
+**Query Parameters:**
+
+| Parameter  | Type   | Description                                      |
+|------------|--------|--------------------------------------------------|
+| category   | string | Filter by exact category                         |
+| rating     | number | Filter by exact rating (1-5)                     |
+| minRating  | number | Filter by minimum rating (inclusive)             |
+| maxRating  | number | Filter by maximum rating (inclusive)             |
+| tag        | string | Filter by tag (matches within tags array)        |
+| author     | string | Filter by exact author                           |
+| sort       | string | newest, oldest, rating-asc, rating-desc          |
+| limit      | number | Number of results (default: 20)                  |
+| offset     | number | Skip N results for pagination (default: 0)       |
+
+**Response:**
+
+    {
+      "items": [
+        {
+          "id": "fb-001",
+          "text": "Great product!",
+          "rating": 5,
+          "category": "ui",
+          "author": "alice@example.com",
+          "created_at": "2026-06-01T10:00:00Z",
+          "tags": ["design", "ux"]
+        }
+      ],
+      "total": 42
+    }
+
+### GET /api/feedback/:id
+
+Get a single feedback entry by ID.
+
+**Response:** Single feedback object (same shape as items in the list).
+
+**Error (404):**
+
+    { "error": "Feedback not found" }
+
+### POST /api/feedback
+
+Create a new feedback entry. **Requires authentication.**
+
+**Request body:**
+
+    {
+      "text": "string (required)",
+      "rating": "number 1-5 (required)",
+      "category": "string (required)",
+      "author": "string (required)",
+      "tags": ["string array (required)"]
+    }
+
+**Response (201):** The created feedback object with generated `id` and `created_at`.
+
+### PATCH /api/feedback/:id
+
+Update an existing feedback entry. **Requires authentication.**
+
+**Request body:** Any subset of: text, rating, category, author, tags.
+
+**Response:** The updated feedback object.
+
+### DELETE /api/feedback/:id
+
+Delete a feedback entry. **Requires authentication.**
+
+**Response:**
+
+    { "message": "Feedback deleted successfully" }
+
+### GET /api/feedback/summary
+
+Get aggregate analytics across all feedback.
+
+**Response:**
+
+    {
+      "totalCount": 10,
+      "averageRating": 3.3,
+      "ratingDistribution": { "1": 2, "2": 1, "3": 2, "4": 2, "5": 3 },
+      "categoryCounts": { "ui": 4, "bug": 2, "performance": 2, "feature": 1, "documentation": 1 },
+      "topTags": [
+        { "tag": "design", "count": 3 },
+        { "tag": "ux", "count": 2 }
+      ],
+      "recentCount7d": 5
+    }
+
+## Data Model
+
+| Field       | Type     | Description                          |
+|-------------|----------|--------------------------------------|
+| id          | string   | Unique identifier (auto-generated)   |
+| text        | string   | Feedback content                     |
+| rating      | integer  | 1-5 star rating                      |
+| category    | string   | Feedback category                    |
+| author      | string   | Author email or identifier           |
+| created_at  | string   | ISO 8601 timestamp (auto-generated)  |
+| tags        | string[] | Array of tag strings                 |
+
+## Dashboard
+
+A built-in analytics dashboard is available at the root URL (`/`). It displays:
+
+- Total feedback count and 7-day count
+- Average rating with star visualization
+- Rating distribution bar chart
+- Category breakdown with colored pills
+- Top tags cloud
+- Latest 5 feedback entries
+
+The dashboard auto-refreshes every 30 seconds.

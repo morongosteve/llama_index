@@ -1,17 +1,14 @@
 {
-  "name": "face-lock-operator",
+  "name": "face-lock-biometric-bot",
   "version": "1.0.0",
-  "description": "Face Lock biometric consistency bot — Telegram/Discord bridge to Python analysis engine",
-  "main": "server.js",
+  "description": "Face Lock biometric character consistency bot for Telegram",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node index.js",
+    "webhook": "node stripe-webhook.js"
   },
   "dependencies": {
-    "telegraf": "^4.16.0"
-  },
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "private": true
+    "express": "^4.18.2",
+    "stripe": "^14.11.0"
+  }
 }

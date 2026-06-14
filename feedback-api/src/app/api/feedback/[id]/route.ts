@@ -1,64 +1,114 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getById, update, remove } from "@/lib/db";
+import { validateApiKey } from "@/lib/auth";
 
+// GET /api/feedback/:id — public, no auth required
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const item = getById(id);
-  if (!item) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const { id } = await params;
+    const feedback = getById(id);
+
+    if (!feedback) {
+      return NextResponse.json(
+        { error: "Feedback not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(feedback);
+  } catch (error) {
+    console.error("GET /api/feedback/[id] error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-  return NextResponse.json(item);
 }
 
+// PATCH /api/feedback/:id — requires auth
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  if (!validateApiKey(request)) {
+    return NextResponse.json(
+      { error: "Invalid or missing API key" },
+      { status: 401 }
+    );
+  }
 
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+    const { id } = await params;
+    const body = await request.json();
 
-  const patch = body as Record<string, unknown>;
-  const allowed = ["text", "rating", "category", "author", "tags"];
-  const sanitized: Record<string, unknown> = {};
-
-  for (const key of allowed) {
-    if (key in patch) {
-      sanitized[key] = patch[key];
+    // Validate optional fields if provided
+    if (body.rating !== undefined) {
+      if (typeof body.rating !== "number" || body.rating < 1 || body.rating > 5) {
+        return NextResponse.json(
+          { error: "rating must be a number between 1 and 5" },
+          { status: 400 }
+        );
+      }
     }
-  }
 
-  if ("rating" in sanitized) {
-    const r = sanitized.rating as number;
-    if (typeof r !== "number" || r < 1 || r > 5 || !Number.isInteger(r)) {
-      return NextResponse.json({ error: "rating must be an integer 1-5" }, { status: 400 });
+    if (body.tags !== undefined && !Array.isArray(body.tags)) {
+      return NextResponse.json(
+        { error: "tags must be an array of strings" },
+        { status: 400 }
+      );
     }
-  }
 
-  const updated = update(id, sanitized);
-  if (!updated) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+    const feedback = update(id, body);
 
-  return NextResponse.json(updated);
+    if (!feedback) {
+      return NextResponse.json(
+        { error: "Feedback not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(feedback);
+  } catch (error) {
+    console.error("PATCH /api/feedback/[id] error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
+// DELETE /api/feedback/:id — requires auth
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const removed = remove(id);
-  if (!removed) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!validateApiKey(request)) {
+    return NextResponse.json(
+      { error: "Invalid or missing API key" },
+      { status: 401 }
+    );
   }
-  return NextResponse.json({ deleted: true });
+
+  try {
+    const { id } = await params;
+    const deleted = remove(id);
+
+    if (!deleted) {
+      return NextResponse.json(
+        { error: "Feedback not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ message: "Feedback deleted successfully" });
+  } catch (error) {
+    console.error("DELETE /api/feedback/[id] error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

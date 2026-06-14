@@ -1,0 +1,20 @@
+# Feedback API
+
+> Collect, manage, and analyze user feedback. REST API with filtering, pagination, and summary statistics.
+
+## Endpoints
+
+- GET /api/feedback — List feedback with filtering (category, rating, tag, author, sort, limit, offset)
+- POST /api/feedback — Create feedback entry (requires Bearer token)
+- GET /api/feedback/{id} — Get single feedback by ID
+- PATCH /api/feedback/{id} — Update feedback (requires Bearer token)
+- DELETE /api/feedback/{id} — Delete feedback (requires Bearer token)
+- GET /api/feedback/summary — Aggregate stats (total, avg rating, distribution, categories, top tags)
+
+## Auth
+
+Write ops require `Authorization: Bearer <key>`. Reads are public.
+
+## Docs
+
+- [Full API reference](/llms-full.txt)

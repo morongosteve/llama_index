@@ -1,0 +1,13 @@
+services:
+  - type: web
+    runtime: docker
+    name: feedback-api
+    plan: free
+    healthCheckPath: /api/feedback/summary
+    envVars:
+      - key: PORT
+        value: 7860
+      - key: NODE_ENV
+        value: production
+      - key: API_KEYS
+        sync: false

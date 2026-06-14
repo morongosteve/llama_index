@@ -1,58 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAll, create } from "@/lib/db";
+import { getAll, create, type FeedbackQuery } from "@/lib/db";
+import { validateApiKey } from "@/lib/auth";
 
+// GET /api/feedback — public, no auth required
 export async function GET(request: NextRequest) {
-  const params = request.nextUrl.searchParams;
+  try {
+    const { searchParams } = new URL(request.url);
 
-  const filters = {
-    category: params.get("category") ?? undefined,
-    rating: params.has("rating") ? Number(params.get("rating")) : undefined,
-    minRating: params.has("minRating") ? Number(params.get("minRating")) : undefined,
-    maxRating: params.has("maxRating") ? Number(params.get("maxRating")) : undefined,
-    tag: params.get("tag") ?? undefined,
-    author: params.get("author") ?? undefined,
-    sort: (params.get("sort") as "newest" | "oldest" | "rating-asc" | "rating-desc") ?? undefined,
-    limit: params.has("limit") ? Number(params.get("limit")) : undefined,
-    offset: params.has("offset") ? Number(params.get("offset")) : undefined,
-  };
+    const query: FeedbackQuery = {
+      category: searchParams.get("category") || undefined,
+      rating: searchParams.get("rating") || undefined,
+      minRating: searchParams.get("minRating") || undefined,
+      maxRating: searchParams.get("maxRating") || undefined,
+      tag: searchParams.get("tag") || undefined,
+      author: searchParams.get("author") || undefined,
+      sort: (searchParams.get("sort") as FeedbackQuery["sort"]) || undefined,
+      limit: searchParams.get("limit") || undefined,
+      offset: searchParams.get("offset") || undefined,
+    };
 
-  const result = getAll(filters);
-  return NextResponse.json(result);
+    const result = getAll(query);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("GET /api/feedback error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
+// POST /api/feedback — requires auth
 export async function POST(request: NextRequest) {
-  let body: unknown;
+  if (!validateApiKey(request)) {
+    return NextResponse.json(
+      { error: "Invalid or missing API key" },
+      { status: 401 }
+    );
+  }
+
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+    const body = await request.json();
 
-  const { text, rating, category, author, tags } = body as Record<string, unknown>;
+    // Validate required fields
+    const { text, rating, category, author, tags } = body;
 
-  if (typeof text !== "string" || !text.trim()) {
-    return NextResponse.json({ error: "text is required" }, { status: 400 });
-  }
-  if (typeof rating !== "number" || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-    return NextResponse.json({ error: "rating must be an integer 1-5" }, { status: 400 });
-  }
-  if (typeof category !== "string" || !category.trim()) {
-    return NextResponse.json({ error: "category is required" }, { status: 400 });
-  }
-  if (typeof author !== "string" || !author.trim()) {
-    return NextResponse.json({ error: "author is required" }, { status: 400 });
-  }
-  if (!Array.isArray(tags) || !tags.every((t) => typeof t === "string")) {
-    return NextResponse.json({ error: "tags must be an array of strings" }, { status: 400 });
-  }
+    if (!text || typeof text !== "string") {
+      return NextResponse.json(
+        { error: "text is required and must be a string" },
+        { status: 400 }
+      );
+    }
 
-  const entry = create({
-    text: text.trim(),
-    rating,
-    category: category.trim(),
-    author: author.trim(),
-    tags,
-  });
+    if (!rating || typeof rating !== "number" || rating < 1 || rating > 5) {
+      return NextResponse.json(
+        { error: "rating is required and must be a number between 1 and 5" },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json(entry, { status: 201 });
+    if (!category || typeof category !== "string") {
+      return NextResponse.json(
+        { error: "category is required and must be a string" },
+        { status: 400 }
+      );
+    }
+
+    if (!author || typeof author !== "string") {
+      return NextResponse.json(
+        { error: "author is required and must be a string" },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(tags)) {
+      return NextResponse.json(
+        { error: "tags is required and must be an array of strings" },
+        { status: 400 }
+      );
+    }
+
+    const feedback = create({ text, rating, category, author, tags });
+    return NextResponse.json(feedback, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/feedback error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
