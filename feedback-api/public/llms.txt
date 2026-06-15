@@ -1,20 +1,20 @@
 # Feedback API
 
-> A REST API for collecting, retrieving, filtering, and summarising user feedback. Each feedback item carries a 1-5 star rating, a category (bug / feature / general), a freetext message, and an author handle. All data is persisted in a JSON file.
+> A REST API for collecting, retrieving, filtering, and summarising user feedback. Each feedback item carries a 1–5 star rating, a category (bug / feature / general), a freetext message, and an author handle. All data is persisted in a JSON file.
 
 This API has no authentication. All endpoints accept and return JSON.
 Base URL (local dev): http://localhost:3000
 
 ## Endpoints
 
-- List feedback: GET /api/feedback — returns all feedback items, supports query-param filtering
-- Create feedback: POST /api/feedback — creates a new feedback item
-- Get one feedback item: GET /api/feedback/:id — returns a single item by UUID
-- Update feedback: PUT /api/feedback/:id — partial update (any field)
-- Delete feedback: DELETE /api/feedback/:id — removes item, returns { deleted: true, id }
-- Feedback summary: GET /api/feedback/summary — aggregate stats (total, averageRating, byCategory, byRating)
-- Full docs: GET /llms-full.txt — complete agent-readable API reference with schemas and examples
+- GET /api/feedback — returns all feedback items, supports query-param filtering
+- POST /api/feedback — creates a new feedback item
+- GET /api/feedback/:id — returns a single item by UUID
+- PUT /api/feedback/:id — partial update (any field)
+- DELETE /api/feedback/:id — removes item, returns { deleted: true, id }
+- GET /api/feedback/summary — aggregate stats (total, averageRating, byCategory, byRating)
+- GET /llms-full.txt — complete agent-readable API reference with schemas and examples
 
 ## Optional
 
-- Health check: GET /api/health — returns { status: "ok", timestamp }
+- GET /api/health — returns { status: "ok", timestamp }
