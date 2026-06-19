@@ -1,5 +1,13 @@
 # Image-to-Video Pipeline
 
+> **Canonical home:** this tooling now lives in the installable
+> [`image-to-video/`](image-to-video/README.md) package
+> (`image_to_video.pipeline`, `.providers`, `.face_lock_core`, `.face_lock_bridge`).
+> The root-level `image_to_video_pipeline.py`, `video_providers.py`,
+> `face_lock_core.py`, and `face_lock_pipeline.py` are now thin compatibility
+> shims that re-export the package, so existing imports and
+> `python <script>.py` invocations keep working. Prefer the package in new code.
+
 Production-grade async batch pipeline that animates still images into short
 clips via the Kling V3 `image2video` API.
 
@@ -19,7 +27,8 @@ clips via the Kling V3 `image2video` API.
 ## Install
 
 ```bash
-pip install -r image_to_video_requirements.txt
+pip install -e ./image-to-video                 # core (aiohttp, Pillow)
+pip install -e "./image-to-video[vision]"       # + Face Lock (numpy, opencv, mediapipe)
 ```
 
 ## Usage
@@ -27,7 +36,10 @@ pip install -r image_to_video_requirements.txt
 ```bash
 export KLING_API_KEY="sk-..."
 
-# Full run: validate inputs/, submit, poll, download to outputs/
+# Installed console command:
+i2v --input inputs --output outputs
+
+# Or via the root shim (equivalent):
 python image_to_video_pipeline.py --input inputs --output outputs
 
 # Dry run: build the manifest only, no API calls
