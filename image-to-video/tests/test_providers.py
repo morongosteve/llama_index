@@ -6,15 +6,11 @@ provider selection + cost-estimation features. No network.
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import image_to_video_pipeline as i2v  # noqa: E402
-import video_providers as vp  # noqa: E402
+from image_to_video import pipeline as i2v
+from image_to_video import providers as vp
 
 
 # ─── Fakes (mirrors the i2v test harness) ─────────────────────────────────────

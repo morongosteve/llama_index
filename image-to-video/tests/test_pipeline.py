@@ -10,16 +10,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import os
-import sys
 
 import pytest
 from PIL import Image
 
-# Make the root-level script importable from tests/.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import image_to_video_pipeline as i2v  # noqa: E402
+from image_to_video import pipeline as i2v
 
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────

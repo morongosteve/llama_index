@@ -6,16 +6,11 @@ Self-contained: no cv2/mediapipe (FaceAnalyzer is faked), no network.
 
 from __future__ import annotations
 
-import os
-import sys
-
 import pytest
 from PIL import Image
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import face_lock_core as flc  # noqa: E402
-import face_lock_pipeline as flp  # noqa: E402
+from image_to_video import face_lock_core as flc
+from image_to_video import face_lock_bridge as flp
 
 
 def _metrics(**over):
