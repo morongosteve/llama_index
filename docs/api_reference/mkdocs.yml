@@ -394,6 +394,7 @@ plugins:
             - ../../llama-index-integrations/llms/llama-index-llms-mymagic
             - ../../llama-index-integrations/llms/llama-index-llms-llama-cpp
             - ../../llama-index-integrations/llms/llama-index-llms-perplexity
+            - ../../llama-index-integrations/llms/llama-index-llms-pollinations
             - ../../llama-index-integrations/llms/llama-index-llms-rungpt
             - ../../llama-index-integrations/llms/llama-index-llms-replicate
             - ../../llama-index-integrations/llms/llama-index-llms-openai-like
