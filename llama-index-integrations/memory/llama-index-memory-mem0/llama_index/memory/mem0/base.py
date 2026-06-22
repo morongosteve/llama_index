@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Optional, Union, Any
 from llama_index.core.memory import BaseMemory, Memory as LlamaIndexMemory
 from llama_index.memory.mem0.utils import (
@@ -121,6 +122,21 @@ class Mem0Memory(BaseMem0):
             context = Mem0Context(**context)
         except ValidationError as e:
             raise ValidationError(f"Context validation error: {e}")
+
+        # Resolve credentials, falling back to environment variables. This lets
+        # the client target a self-hosted Mem0 server instead of Mem0 cloud:
+        #   - host only    -> self-hosted server (no api_key required)
+        #   - api_key only -> Mem0 cloud
+        #   - both         -> self-hosted server with auth
+        #   - neither      -> cannot construct a client (raises)
+        api_key = api_key or os.environ.get("MEM0_API_KEY")
+        host = host or os.environ.get("MEM0_HOST")
+        if not api_key and not host:
+            raise ValueError(
+                "Unable to initialize Mem0 MemoryClient: provide an `api_key` "
+                "to use Mem0 cloud, a `host` to point at a self-hosted server, "
+                "or set the MEM0_API_KEY / MEM0_HOST environment variables."
+            )
 
         client = MemoryClient(
             api_key=api_key, host=host, org_id=org_id, project_id=project_id
