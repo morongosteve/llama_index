@@ -32,6 +32,15 @@ A Feedback item has these fields:
 | createdAt  | string | ISO 8601 timestamp                             |
 | updatedAt  | string | ISO 8601 timestamp (changes on PUT)            |
 
+The aggregate FeedbackSummary object (returned by /api/feedback/summary) has these fields:
+
+| Field         | Type                  | Description                                  |
+|---------------|-----------------------|----------------------------------------------|
+| total         | number                | Count of all feedback items                  |
+| averageRating | number                | Mean rating, rounded to 2 decimal places     |
+| byCategory    | Record<string,number> | Item count keyed by category                 |
+| byRating      | Record<number,number> | Item count keyed by rating (1–5)             |
+
 ---
 
 ## Endpoints
@@ -56,7 +65,7 @@ Response 200:
 }
 
 Example:
-  GET ${BASE}/api/feedback?category=bug&minRating=1&maxRating=3&limit=10
+  curl "${BASE}/api/feedback?category=bug&minRating=1&maxRating=3&limit=10"
 
 ---
 
@@ -83,8 +92,9 @@ Response 400 (validation failure):
 }
 
 Example:
-  POST ${BASE}/api/feedback
-  { "author": "alice", "rating": 5, "category": "feature", "message": "Excellent UX." }
+  curl -X POST "${BASE}/api/feedback" \\
+    -H "Content-Type: application/json" \\
+    -d '{ "author": "alice", "rating": 5, "category": "feature", "message": "Excellent UX." }'
 
 ---
 
@@ -106,7 +116,7 @@ Response 404:
 }
 
 Example:
-  GET ${BASE}/api/feedback/a1b2c3d4-0001
+  curl "${BASE}/api/feedback/a1b2c3d4-0001"
 
 ---
 
@@ -141,8 +151,9 @@ Response 404:
 }
 
 Example:
-  PUT ${BASE}/api/feedback/a1b2c3d4-0001
-  { "rating": 4, "message": "Updated after the fix shipped." }
+  curl -X PUT "${BASE}/api/feedback/a1b2c3d4-0001" \\
+    -H "Content-Type: application/json" \\
+    -d '{ "rating": 4, "message": "Updated after the fix shipped." }'
 
 ---
 
@@ -164,7 +175,7 @@ Response 404:
 }
 
 Example:
-  DELETE ${BASE}/api/feedback/a1b2c3d4-0001
+  curl -X DELETE "${BASE}/api/feedback/a1b2c3d4-0001"
 
 ---
 
@@ -193,7 +204,7 @@ Response 200:
 }
 
 Example:
-  GET ${BASE}/api/feedback/summary
+  curl "${BASE}/api/feedback/summary"
 
 ---
 
@@ -207,6 +218,9 @@ Response 200:
   "timestamp": "<ISO 8601>"
 }
 
+Example:
+  curl "${BASE}/api/health"
+
 ---
 
 ## Error Format
@@ -216,12 +230,17 @@ All error responses share a consistent shape:
   "error": "<human-readable message>"
 }
 
-HTTP status codes used:
-- 200 — success
-- 201 — resource created
-- 400 — validation error (bad input)
-- 404 — resource not found
-- 500 — internal server error
+---
+
+## HTTP Status Codes
+
+| Code | Meaning              | When                                            |
+|------|----------------------|-------------------------------------------------|
+| 200  | OK                   | Successful GET, PUT, DELETE                      |
+| 201  | Created              | Successful POST /api/feedback                    |
+| 400  | Bad Request          | Validation error (missing/invalid body fields)   |
+| 404  | Not Found            | Unknown :id on GET/PUT/DELETE /api/feedback/:id  |
+| 500  | Internal Server Error| Unexpected server-side failure                   |
 
 ---
 
@@ -232,6 +251,10 @@ Use limit + offset for pagination:
   GET /api/feedback?limit=10&offset=10  # page 2
   GET /api/feedback?limit=10&offset=20  # page 3
 
+The "count" field in each response is the number of items in that page (after
+filtering and slicing), so request the next page until "count" is less than
+your "limit".
+
 ---
 
 ## Usage Notes for Agents
@@ -241,6 +264,8 @@ Use limit + offset for pagination:
 3. The :id parameter is a UUID string — preserve it exactly as returned by GET/POST.
 4. Writes (POST, PUT, DELETE) are not atomic; avoid concurrent mutations to the same id.
 5. The category enum is case-sensitive: use lowercase "bug", "feature", or "general".
+6. POST requires all four fields (author, rating, category, message); PUT accepts any subset.
+7. rating must be an integer from 1 to 5 — non-integer or out-of-range values return 400.
 `;
 
 export async function GET() {
