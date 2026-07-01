@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0b0b0f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Gemma 4 Chat</title>
+<style>
+  :root {
+    --bg: #0b0b0f;
+    --panel: #15151d;
+    --panel-2: #1d1d28;
+    --text: #ececf1;
+    --muted: #8a8a99;
+    --accent: #7c5cff;
+    --user: #2a2a3a;
+    --bot: #191922;
+    --border: #26263300;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  body { display: flex; flex-direction: column; height: 100dvh; }
+
+  header {
+    padding: env(safe-area-inset-top) 14px 10px;
+    padding-top: max(env(safe-area-inset-top), 12px);
+    background: var(--panel);
+    border-bottom: 1px solid #24243050;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: #444; flex: none; }
+  header .dot.ok { background: #3ddc84; }
+  header .dot.err { background: #ff5c5c; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; flex: 1; }
+  header .model { font-size: 11px; color: var(--muted); }
+  header button.gear {
+    background: none; border: none; color: var(--muted); font-size: 20px;
+    cursor: pointer; padding: 4px 6px;
+  }
+
+  #settings {
+    display: none; padding: 12px 14px; background: var(--panel-2);
+    border-bottom: 1px solid #24243050; gap: 8px; flex-direction: column;
+  }
+  #settings.open { display: flex; }
+  #settings label { font-size: 12px; color: var(--muted); }
+  #settings input {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #303040;
+    background: var(--bg); color: var(--text); font-size: 15px;
+  }
+  #settings .row { display: flex; gap: 8px; }
+  #settings .row input { flex: 1; }
+  #settings button {
+    padding: 10px 14px; border-radius: 10px; border: none;
+    background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
+  }
+
+  #chat {
+    flex: 1; overflow-y: auto; padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .msg { max-width: 85%; padding: 10px 13px; border-radius: 16px; line-height: 1.45; font-size: 15px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--user); border-bottom-right-radius: 5px; }
+  .msg.bot  { align-self: flex-start; background: var(--bot); border-bottom-left-radius: 5px; }
+  .msg.bot.pending::after { content: "▋"; animation: blink 1s steps(2) infinite; color: var(--accent); }
+  @keyframes blink { 50% { opacity: 0; } }
+  .empty { color: var(--muted); text-align: center; margin: auto; font-size: 14px; padding: 0 30px; }
+
+  footer {
+    padding: 10px 12px calc(env(safe-area-inset-bottom) + 10px);
+    background: var(--panel); border-top: 1px solid #24243050;
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  #input {
+    flex: 1; resize: none; max-height: 140px; min-height: 44px;
+    padding: 11px 14px; border-radius: 22px; border: 1px solid #303040;
+    background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.35;
+    font-family: inherit;
+  }
+  #send {
+    width: 44px; height: 44px; flex: none; border-radius: 50%; border: none;
+    background: var(--accent); color: #fff; font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #send:disabled { opacity: .4; }
+</style>
+</head>
+<body>
+  <header>
+    <span class="dot" id="status-dot"></span>
+    <h1>Gemma 4 <span class="model" id="model-label"></span></h1>
+    <button class="gear" id="gear" aria-label="Settings">⚙</button>
+  </header>
+
+  <div id="settings">
+    <label for="backend">Backend URL (your Railway server)</label>
+    <input id="backend" placeholder="https://your-app.railway.app" inputmode="url" autocapitalize="off" autocomplete="off" />
+    <button id="save-settings">Save &amp; connect</button>
+  </div>
+
+  <div id="chat">
+    <div class="empty" id="empty">Set your backend URL in ⚙ settings, then start chatting with Gemma 4.</div>
+  </div>
+
+  <footer>
+    <textarea id="input" placeholder="Message Gemma 4…" rows="1"></textarea>
+    <button id="send" aria-label="Send">↑</button>
+  </footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var LS_BACKEND = "gemma4_backend_url";
+  var chat = document.getElementById("chat");
+  var input = document.getElementById("input");
+  var sendBtn = document.getElementById("send");
+  var gear = document.getElementById("gear");
+  var settings = document.getElementById("settings");
+  var backendInput = document.getElementById("backend");
+  var saveBtn = document.getElementById("save-settings");
+  var statusDot = document.getElementById("status-dot");
+  var modelLabel = document.getElementById("model-label");
+  var emptyEl = document.getElementById("empty");
+
+  var history = [];       // [{role, content}]
+  var streaming = false;
+
+  function backendUrl() {
+    return (localStorage.getItem(LS_BACKEND) || "").replace(/\/+$/, "");
+  }
+
+  function setDot(state) {
+    statusDot.className = "dot" + (state ? " " + state : "");
+  }
+
+  // ---- health check --------------------------------------------------------
+  function checkHealth() {
+    var url = backendUrl();
+    if (!url) { setDot(""); modelLabel.textContent = ""; return; }
+    fetch(url + "/health").then(function (r) { return r.json(); }).then(function (d) {
+      setDot("ok");
+      modelLabel.textContent = d.model ? "· " + d.model + " (" + d.mode + ")" : "";
+    }).catch(function () {
+      setDot("err"); modelLabel.textContent = "· offline";
+    });
+  }
+
+  // ---- rendering -----------------------------------------------------------
+  function addMsg(role, text) {
+    if (emptyEl) { emptyEl.remove(); emptyEl = null; }
+    var el = document.createElement("div");
+    el.className = "msg " + role;
+    el.textContent = text;
+    chat.appendChild(el);
+    chat.scrollTop = chat.scrollHeight;
+    return el;
+  }
+
+  function autoScroll() { chat.scrollTop = chat.scrollHeight; }
+
+  // ---- send / stream -------------------------------------------------------
+  function send() {
+    if (streaming) return;
+    var text = input.value.trim();
+    if (!text) return;
+    var url = backendUrl();
+    if (!url) { settings.classList.add("open"); return; }
+
+    addMsg("user", text);
+    history.push({ role: "user", content: text });
+    input.value = ""; input.style.height = "auto";
+
+    var botEl = addMsg("bot", "");
+    botEl.classList.add("pending");
+    streaming = true; sendBtn.disabled = true;
+
+    var acc = "";
+
+    fetch(url + "/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: history })
+    }).then(function (resp) {
+      if (!resp.ok || !resp.body) throw new Error("HTTP " + resp.status);
+      var reader = resp.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = "";
+
+      function pump() {
+        return reader.read().then(function (res) {
+          if (res.done) { finish(); return; }
+          buffer += decoder.decode(res.value, { stream: true });
+          var parts = buffer.split("\n\n");
+          buffer = parts.pop();
+          for (var i = 0; i < parts.length; i++) {
+            var line = parts[i].trim();
+            if (line.indexOf("data:") !== 0) continue;
+            var payload = line.slice(5).trim();
+            if (payload === "[DONE]") { finish(); return; }
+            try {
+              var obj = JSON.parse(payload);
+              if (obj.delta) { acc += obj.delta; botEl.textContent = acc; autoScroll(); }
+            } catch (e) { /* ignore partial */ }
+          }
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function (err) {
+      // Fallback to non-streaming /chat if /stream fails
+      fetch(url + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        acc = d.content || ("[error] " + err.message);
+        botEl.textContent = acc;
+        finish();
+      }).catch(function (e2) {
+        botEl.textContent = "[error] " + e2.message;
+        finish();
+      });
+    });
+
+    function finish() {
+      botEl.classList.remove("pending");
+      if (acc) history.push({ role: "assistant", content: acc });
+      streaming = false; sendBtn.disabled = false;
+      autoScroll();
+    }
+  }
+
+  // ---- events --------------------------------------------------------------
+  sendBtn.addEventListener("click", send);
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  input.addEventListener("input", function () {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
+  });
+
+  gear.addEventListener("click", function () { settings.classList.toggle("open"); });
+  saveBtn.addEventListener("click", function () {
+    localStorage.setItem(LS_BACKEND, backendInput.value.trim());
+    settings.classList.remove("open");
+    checkHealth();
+  });
+
+  // ---- init ----------------------------------------------------------------
+  backendInput.value = backendUrl();
+  checkHealth();
+  if (!backendUrl()) settings.classList.add("open");
+})();
+</script>
+</body>
+</html>
