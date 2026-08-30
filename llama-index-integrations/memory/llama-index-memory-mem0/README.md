@@ -43,6 +43,30 @@ context = {
 
 `search_msg_limit` is optional, default is 5. It is the number of messages from the chat history to be used for memory retrieval from Mem0. More number of messages will result in more context being used for retrieval but will also increase the retrieval time and might result in some unwanted results.
 
+## Setup with a Self-Hosted Mem0 Server
+
+If you run your own [Mem0 server](https://docs.mem0.ai/open-source/quickstart) instead of using Mem0 cloud, point `from_client` at it with the `host` argument. No API key is required for a self-hosted server, though you may still pass one if your deployment is authenticated.
+
+```python
+from llama_index.memory.mem0 import Mem0Memory
+
+context = {"user_id": "user_1"}
+memory = Mem0Memory.from_client(
+    context=context,
+    host="http://localhost:24220",  # your self-hosted Mem0 server
+    search_msg_limit=4,  # optional, default is 5
+)
+```
+
+`host` and `api_key` can also be supplied via the `MEM0_HOST` and `MEM0_API_KEY` environment variables. Credentials resolve as follows:
+
+| `host` | `api_key` | Result |
+| ------ | --------- | ------ |
+| set | unset | Self-hosted server |
+| unset | set | Mem0 cloud |
+| set | set | Self-hosted server with auth |
+| unset | unset | Error — no client can be created |
+
 ## Setup with Mem0 OSS
 
 1. Set your Mem0 OSS by providing configuration details:
