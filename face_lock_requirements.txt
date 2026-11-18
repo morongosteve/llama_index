@@ -1,5 +1,13 @@
-streamlit>=1.30.0
-mediapipe>=0.10.9
+# st.image(use_container_width=...) was added in Streamlit 1.40
+streamlit>=1.40.0
+# FaceAnalyzer uses mediapipe's legacy `solutions.face_mesh` API and its bundled
+# models. 0.10.21 is the last release that ships them (removed from 0.10.30 on),
+# so this ceiling must stay until FaceAnalyzer is ported to the Tasks API.
+# It also means Python <= 3.12 (no 0.10.21 wheel for 3.13).
+mediapipe>=0.10.9,<0.10.30
 opencv-python-headless>=4.8.0
 numpy>=1.24.0
 Pillow>=10.0.0
+# Streamlit 1.60 + Starlette 1.x answers every /media/* request (i.e. every
+# st.image) with HTTP 500, so no image renders. Drop once Streamlit fixes it.
+starlette<1

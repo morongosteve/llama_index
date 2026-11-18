@@ -94,12 +94,14 @@ def lock_from_reference(
     analyzer: Optional["flc.FaceAnalyzer"] = None,
 ) -> tuple[flc.FacialMeasurements, dict]:
     """Measure the reference face and return (locked_metrics, job_config)."""
-    import numpy as np
-    from PIL import Image
+    from PIL import Image, ImageOps
 
     analyzer = analyzer or flc.FaceAnalyzer()
-    image_np = np.array(Image.open(reference_path).convert("RGB"))
-    metrics = analyzer.analyze(image_np)
+    # Hand over the PIL image itself (read as RGB by the analyzer, EXIF rotation
+    # applied). A raw RGB array would be read as BGR - unlike the video frames
+    # this lock is later compared against.
+    image = ImageOps.exif_transpose(Image.open(reference_path))
+    metrics = analyzer.analyze(image)
     if metrics is None:
         raise ValueError(f"No face detected in reference: {reference_path}")
 
