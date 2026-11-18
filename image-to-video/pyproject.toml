@@ -21,7 +21,8 @@ dependencies = [
 vision = [
     "numpy>=1.24.0",
     "opencv-python-headless>=4.8.0",
-    "mediapipe>=0.10.9",
+    # Legacy `solutions.face_mesh` API: last shipped in 0.10.21 (removed in 0.10.30).
+    "mediapipe>=0.10.9,<0.10.30",
 ]
 dev = ["pytest>=7.0"]
 

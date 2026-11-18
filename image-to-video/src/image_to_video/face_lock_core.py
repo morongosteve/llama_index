@@ -38,7 +38,9 @@ class AnalogFilmProcessor:
 
     @staticmethod
     def apply_preset(image: Image.Image, preset: str) -> Image.Image:
-        img = image.copy()
+        # The presets split/merge exactly three bands, so normalise first: RGBA,
+        # grayscale, palette and CMYK inputs would otherwise raise.
+        img = image.convert("RGB")
 
         if preset == "Kodachrome 25":
             # High contrast, rich saturation, slight warm shift
@@ -80,6 +82,13 @@ class FaceAnalyzer:
     def __init__(self):
         import mediapipe as mp  # lazy — only needed when analysis runs
 
+        if not hasattr(mp, "solutions"):
+            raise RuntimeError(
+                "Face Lock uses mediapipe's legacy `solutions.face_mesh` API, which "
+                "was removed in mediapipe 0.10.30 (0.10.21 is the last release that "
+                "ships it, with its models bundled). Install a compatible version: "
+                "pip install 'mediapipe>=0.10.9,<0.10.30'"
+            )
         self.mp_face_mesh = mp.solutions.face_mesh
         self.face_mesh = self.mp_face_mesh.FaceMesh(
             static_image_mode=True,
@@ -88,26 +97,53 @@ class FaceAnalyzer:
             min_detection_confidence=0.5,
         )
 
-    def _calculate_angle(self, p1, p2, p3):
-        """Calculates angle P1-P2-P3."""
-        v1 = np.array([p1.x - p2.x, p1.y - p2.y])
-        v2 = np.array([p3.x - p2.x, p3.y - p2.y])
+    @staticmethod
+    def _to_rgb(image) -> np.ndarray:
+        """
+        Normalise the supported inputs to a contiguous H x W x 3 uint8 RGB array.
 
+        A PIL image is taken as RGB; an ndarray is taken as BGR(A) (OpenCV
+        convention) or single-channel. Alpha, if present, is dropped.
+        """
+        if isinstance(image, Image.Image):
+            return np.ascontiguousarray(np.array(image.convert("RGB")))
+
+        arr = np.asarray(image)
+        if arr.ndim == 2:  # grayscale
+            arr = arr[:, :, None]
+        if arr.ndim != 3 or arr.shape[2] not in (1, 3, 4):
+            raise ValueError(f"Unsupported image array shape: {arr.shape}")
+        if arr.dtype != np.uint8:
+            arr = np.clip(arr, 0, 255).astype(np.uint8)
+        if arr.shape[2] == 1:
+            arr = np.repeat(arr, 3, axis=2)
+        return np.ascontiguousarray(arr[:, :, 2::-1])  # BGR(A) -> RGB
+
+    @staticmethod
+    def _angle(a, vertex, b) -> float:
+        """Angle in degrees at ``vertex`` between the rays towards ``a`` and ``b``."""
+        v1, v2 = a - vertex, b - vertex
         cosine_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-        angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
-        return np.degrees(angle)
+        return float(np.degrees(np.arccos(np.clip(cosine_angle, -1.0, 1.0))))
 
-    def _calculate_slope(self, p1, p2):
-        return np.degrees(math.atan2(p2.y - p1.y, p2.x - p1.x))
+    @staticmethod
+    def _tilt(inner, outer) -> float:
+        """
+        Eye-line angle in degrees, medial -> lateral canthus.
 
-    def _estimate_skin_tone(self, image_np, landmarks) -> int:
+        Positive when the lateral corner sits higher (image y grows downwards).
+        """
+        return math.degrees(
+            math.atan2(-(outer[1] - inner[1]), abs(outer[0] - inner[0]))
+        )
+
+    def _estimate_skin_tone(self, image_rgb, pts) -> int:
         # Sample cheek area
-        h, w, _ = image_np.shape
-        cheek_landmark = landmarks[234]  # Left cheek area
-        cx, cy = int(cheek_landmark.x * w), int(cheek_landmark.y * h)
+        h, w, _ = image_rgb.shape
+        cx, cy = int(pts[234][0]), int(pts[234][1])  # Left cheek area
 
         # Extract 10x10 patch
-        patch = image_np[
+        patch = image_rgb[
             max(0, cy - 5) : min(h, cy + 5), max(0, cx - 5) : min(w, cx + 5)
         ]
         if patch.size == 0:
@@ -131,47 +167,66 @@ class FaceAnalyzer:
             return 6
 
     def analyze(self, image_np) -> Optional[FacialMeasurements]:
-        import cv2  # lazy — only needed when analysis runs
+        """
+        Measure the face in ``image_np``; ``None`` if no face is found.
 
-        results = self.face_mesh.process(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB))
+        ``image_np`` is a **BGR** uint8 array (OpenCV convention, e.g. a video
+        frame) or a **PIL image** (taken as RGB). Grayscale and 4-channel arrays
+        are accepted too. All geometry is computed in pixel space, so the result
+        does not depend on the frame's aspect ratio.
+        """
+        rgb = self._to_rgb(image_np)
+        results = self.face_mesh.process(rgb)
 
         if not results.multi_face_landmarks:
             return None
 
-        lm = results.multi_face_landmarks[0].landmark
-        h, w, _ = image_np.shape
+        h, w, _ = rgb.shape
+        # mediapipe normalises x by the width and y by the height, so distances
+        # and angles are only meaningful once each axis is scaled back to pixels.
+        pts = np.array(
+            [(p.x * w, p.y * h) for p in results.multi_face_landmarks[0].landmark]
+        )
+
+        def dist(a: int, b: int) -> float:
+            return float(np.linalg.norm(pts[a] - pts[b]))
 
         # --- BIOMETRIC CALCULATIONS ---
 
         # 1. Gonial Angle (Jaw)
-        # Approx landmarks: 172 (Left Jaw Top), 132 (Left Gonion/Jaw Corner), 152 (Chin/Menton)
-        gonial = self._calculate_angle(lm[172], lm[132], lm[152])
+        # Angle at the jaw corner (172 / 397) between the ramus (132 / 361, up
+        # towards the ear) and the chin (152), averaged over both sides.
+        gonial = (
+            self._angle(pts[132], pts[172], pts[152])
+            + self._angle(pts[361], pts[397], pts[152])
+        ) / 2
 
         # 2. Canthal Tilt
-        # Left eye: 362 (inner), 263 (outer)
-        inner_eye = lm[133]
-        outer_eye = lm[33]
-        tilt = -1 * self._calculate_slope(inner_eye, outer_eye)
+        # Medial -> lateral canthus of both eyes (133->33 and 362->263). Averaging
+        # the two also cancels in-plane head roll.
+        tilt = (self._tilt(pts[133], pts[33]) + self._tilt(pts[362], pts[263])) / 2
 
         # 3. Facial Index (Height / Width)
-        height = math.hypot(lm[168].x - lm[152].x, lm[168].y - lm[152].y)
-        width = math.hypot(lm[234].x - lm[454].x, lm[234].y - lm[454].y)
+        height = dist(168, 152)
+        width = dist(234, 454)
         f_index = (height / width) * 100 if width > 0 else 0
 
-        # 4. Nasal Rotation (Tip inclination)
-        n_rot = (lm[2].y - lm[1].y) * 1000
+        # 4. Nasal Rotation (Tip inclination), as a % of face height so it does
+        # not depend on how much of the frame the face fills.
+        face_h = dist(10, 152)
+        n_rot = float((pts[2][1] - pts[1][1]) / face_h * 100) if face_h > 0 else 0.0
 
         # 5. Zygomatic Prominence
-        jaw_width = math.hypot(lm[132].x - lm[361].x, lm[132].y - lm[361].y)
+        jaw_width = dist(132, 361)
         zyg_prom = (width / jaw_width) if jaw_width > 0 else 1.0
 
         # 6. Eye Shape Ratio (Height / Width)
-        eye_h = math.hypot(lm[159].x - lm[145].x, lm[159].y - lm[145].y)
-        eye_w = math.hypot(lm[133].x - lm[33].x, lm[133].y - lm[33].y)
+        eye_h = dist(159, 145)
+        eye_w = dist(133, 33)
         e_shape = eye_h / eye_w if eye_w > 0 else 0
 
         # 7. Fitzpatrick
-        fitz = self._estimate_skin_tone(image_np, lm)
+        fitz = self._estimate_skin_tone(rgb, pts)
 
         return FacialMeasurements(
             gonial_angle=round(gonial, 2),
