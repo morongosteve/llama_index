@@ -1,8 +1,7 @@
 import streamlit as st
-import numpy as np
 from datetime import datetime
 import hashlib
-from PIL import Image
+from PIL import Image, ImageOps
 
 from face_lock_core import (
     AnalogFilmProcessor,
@@ -49,6 +48,17 @@ class BIPAConsent:
 
 
 # --- STREAMLIT UI ---
+
+
+def load_rgb(uploaded_file) -> Image.Image:
+    """
+    Open an upload as an upright RGB image.
+
+    Phone photos store their rotation in EXIF, and PNG/JPEG uploads can be
+    grayscale, palette, RGBA or CMYK. The analyzer and the film emulation need
+    plain RGB, so normalise once here.
+    """
+    return ImageOps.exif_transpose(Image.open(uploaded_file)).convert("RGB")
 
 
 def main():
@@ -101,8 +111,7 @@ def main():
     )
 
     if uploaded_file:
-        image = Image.open(uploaded_file)
-        image_np = np.array(image)
+        image = load_rgb(uploaded_file)
 
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -111,7 +120,7 @@ def main():
         # Run Analysis
         if st.button("Extract Biometrics"):
             with st.spinner("Analyzing Mesh Geometry..."):
-                metrics = analyzer.analyze(image_np)
+                metrics = analyzer.analyze(image)
 
                 if metrics:
                     st.session_state.locked_metrics = metrics
@@ -166,10 +175,9 @@ def main():
         )
 
         if gen_file:
-            gen_image = Image.open(gen_file)
-            gen_np = np.array(gen_image)
+            gen_image = load_rgb(gen_file)
 
-            gen_metrics = analyzer.analyze(gen_np)
+            gen_metrics = analyzer.analyze(gen_image)
 
             if gen_metrics:
                 report = drift_detector.check_drift(
